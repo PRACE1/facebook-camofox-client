@@ -3,11 +3,7 @@ name = "facebook-camofox-client"
 version = "0.1.0"
 description = "Camofox-native Facebook client for OpenMagpie"
 requires-python = ">=3.11"
-dependencies = [
-    "camofox",
-    "pydantic>=2.0",
-]
-
+dependencies = ["camoufox[geoip]", "pydantic>=2.0"]
 [project.optional-dependencies]
 dev = ["pytest", "ruff", "mypy"]
 
