@@ -1,7 +1,6 @@
 """Manages Camoufox sessions per account."""
 from __future__ import annotations
 import uuid
-from camoufox.async_api import AsyncCamoufox
 
 
 class CamofoxSession:
@@ -25,6 +24,8 @@ class CamofoxSession:
 
 class CamofoxSessionManager:
     async def acquire(self, account_id: str, proxy_config: dict | None = None) -> CamofoxSession:
+        from camoufox.async_api import AsyncCamoufox
+
         browser = await AsyncCamoufox(
             humanize=True,
             geoip=True,
