@@ -151,3 +151,58 @@ async def test_release_runs_even_when_normalize_raises():
         await action.execute(make_envelope())
 
     assert mgr.release_count == 1
+# --- Exact event payload assertions ---
+
+@pytest.mark.asyncio
+async def test_happy_path_event_payloads_are_correct():
+    page = FakePage(title="Some Group", url="https://facebook.com/groups/123")
+
+    class SessionWithOneResult(FakeSession):
+        async def execute(self, activity, params):
+            return {"results": [{"post_id": "p1", "content": "crypto launch", "author": "Alice", "author_id": "alice1", "url": "https://facebook.com/posts/p1"}]}
+
+    session = SessionWithOneResult(page)
+    mgr = FakeSessionManager(session)
+    emitter = InMemoryEventEmitter()
+    action = GroupsSearchAction(mgr, InMemoryCursorRepository(), PostNormalizer(), emitter)
+
+    result = await action.execute(make_envelope())
+
+    event_types = [e.event_type for e in emitter.events]
+    assert "groups.result_found" in event_types
+    assert "groups.search_completed" in event_types
+
+    completed = next(e for e in emitter.events if e.event_type == "groups.search_completed")
+    assert completed.payload["records_found"] == 1
+    assert completed.payload["action_id"] == "test-1"
+
+    found = next(e for e in emitter.events if e.event_type == "groups.result_found")
+    assert "record_id" in found.payload
+    assert found.payload["action_id"] == "test-1"
+
+
+# --- Normalized record shape ---
+
+@pytest.mark.asyncio
+async def test_normalized_record_shape():
+    page = FakePage(title="Some Group", url="https://facebook.com/groups/123")
+
+    class SessionWithOneResult(FakeSession):
+        async def execute(self, activity, params):
+            return {"results": [{"post_id": "p99", "content": "hello world", "author": "Bob", "author_id": "bob1", "url": "https://facebook.com/posts/p99", "likes": 5, "comments": 2, "shares": 1}]}
+
+    session = SessionWithOneResult(page)
+    mgr = FakeSessionManager(session)
+    emitter = InMemoryEventEmitter()
+    action = GroupsSearchAction(mgr, InMemoryCursorRepository(), PostNormalizer(), emitter)
+
+    result = await action.execute(make_envelope())
+
+    assert len(result.results) == 1
+    rec = result.results[0]
+    assert rec["external_id"] == "p99"
+    assert rec["content"] == "hello world"
+    assert rec["author"]["name"] == "Bob"
+    assert rec["metrics"]["likes"] == 5
+    assert rec["record_type"] == "facebook_post"
+    assert rec["account_id"] == "acc1"
