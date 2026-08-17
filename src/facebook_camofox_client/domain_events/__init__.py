@@ -1,0 +1,1 @@
+"""Domain: Event emission."""

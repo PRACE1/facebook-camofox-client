@@ -1,0 +1,1 @@
+"""Domain: OpenMagpie connector adapter."""

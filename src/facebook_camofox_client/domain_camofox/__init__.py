@@ -1,0 +1,1 @@
+"""Domain: Camofox session management."""
