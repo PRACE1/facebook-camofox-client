@@ -2,7 +2,7 @@
 from __future__ import annotations
 import uuid
 from datetime import datetime, UTC
-from domain_records.models import NormalizedPostRecord
+from facebook_camofox_client.domain_records.models import NormalizedPostRecord
 
 class PostNormalizer:
     def normalize(self, raw: dict, account_id: str, source_action: str) -> NormalizedPostRecord:

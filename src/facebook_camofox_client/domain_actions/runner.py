@@ -1,6 +1,6 @@
 """Action runner dispatches envelopes to handlers."""
 from __future__ import annotations
-from domain_actions.envelope import ActionEnvelope
+from facebook_camofox_client.domain_actions.envelope import ActionEnvelope
 
 class ActionRunner:
     def __init__(self) -> None:

@@ -1,7 +1,7 @@
 """Event emitter."""
 from __future__ import annotations
 from datetime import datetime, UTC
-from domain_events.models import DomainEvent
+from facebook_camofox_client.domain_events.models import DomainEvent
 
 class InMemoryEventEmitter:
     def __init__(self) -> None:
