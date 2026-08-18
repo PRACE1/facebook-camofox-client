@@ -11,7 +11,7 @@ from facebook_camofox_client.domain_groups.search import GroupsSearchAction
 from facebook_camofox_client.domain_records.normalization import PostNormalizer
 from facebook_camofox_client.domain_actions.envelope import ActionEnvelope
 
-COOKIES_FILE = r"C:\Users\R5 5600 GT\fb_cookies.json"
+COOKIES_FILE = r"C:\Users\R5 5600 GT\fb_cookies_playwright.json"
 GROUP_ID = "305056891435827"
 
 async def main():
