@@ -43,6 +43,7 @@ class ExtractionResult:
     records: list[ExtractedPost] = field(default_factory=list)
     failure_reason: FailureReason | None = None
     warning: str | None = None
+    duplicate_candidates: int = 0
 
     @property
     def ok(self) -> bool:
@@ -95,11 +96,13 @@ def extract_from_relay(
     records: dict[str, ExtractedPost] = {}
     group_mismatches = 0
     schema_incomplete = 0
+    duplicate_candidates = 0
     now_iso = datetime.now(UTC).isoformat()
 
     for idx, match in enumerate(candidates):
         post_id = match.group(1)
         if post_id in records:
+            duplicate_candidates += 1
             continue
 
         # Bound both directions by neighboring post_id matches (capped),
@@ -170,8 +173,8 @@ def extract_from_relay(
 
     if not result_records:
         if group_mismatches and not schema_incomplete:
-            return ExtractionResult(failure_reason=FailureReason.GROUP_MISMATCH)
-        return ExtractionResult(failure_reason=FailureReason.SCHEMA_CHANGED)
+            return ExtractionResult(failure_reason=FailureReason.GROUP_MISMATCH, duplicate_candidates=duplicate_candidates)
+        return ExtractionResult(failure_reason=FailureReason.SCHEMA_CHANGED, duplicate_candidates=duplicate_candidates)
 
     if len(result_records) < min_records:
         return ExtractionResult(
@@ -182,6 +185,7 @@ def extract_from_relay(
                 f"({schema_incomplete} skipped for incomplete schema, "
                 f"{group_mismatches} skipped for group mismatch)."
             ),
+            duplicate_candidates=duplicate_candidates,
         )
 
     warning = None
@@ -191,7 +195,7 @@ def extract_from_relay(
             f"{group_mismatches} skipped (group mismatch)."
         )
 
-    return ExtractionResult(records=result_records, warning=warning)
+    return ExtractionResult(records=result_records, warning=warning, duplicate_candidates=duplicate_candidates)
 
 
 # ---------------------------------------------------------------------------

@@ -129,6 +129,12 @@ class NativeResponseAdapter:
         # page-load adapter (same invariants: post_id, associated_group,
         # creation_time).
         result = extract_from_relay(text, self.expected_group_id, min_records=0)
+
+        # within-response duplicates (same post_id appearing twice in
+        # one response body) are caught by extract_from_relay's own
+        # dedup — fold that into our counter so it's visible, not silent
+        self.counters["duplicates"] += result.duplicate_candidates
+
         for rec in result.records:
             self.counters["candidate_records"] += 1
             if rec.post_id in self._records:

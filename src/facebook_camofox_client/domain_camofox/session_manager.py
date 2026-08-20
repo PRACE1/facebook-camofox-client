@@ -23,7 +23,8 @@ class CamofoxSession:
 
     async def execute(self, activity: str, params: dict[str, Any]) -> dict[str, Any]:
         if activity == "facebook_group_search":
-            from facebook_camofox_client.domain_extraction.post_extractor import extract
+            from facebook_camofox_client.domain_extraction.post_extractor import extract_from_relay
+            from facebook_camofox_client.domain_extraction.response_capture import NativeResponseAdapter
 
             group_id = params.get("group_id")
             if not group_id:
@@ -35,26 +36,45 @@ class CamofoxSession:
                 raise ValueError("group_id or group_ids required for facebook_group_search")
 
             page = await self.context.new_page()
-            url = params.get("url") or f"https://web.facebook.com/groups/{group_id}"
-            await page.goto(url, wait_until="domcontentloaded")
-            await page.wait_for_timeout(3000)
+            adapter = NativeResponseAdapter(expected_group_id=group_id)
 
-            scroll_limit = params.get("scroll_limit", 3)
-            for _ in range(scroll_limit):
-                await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-                await page.wait_for_timeout(2000)
+            adapter.attach(page)
+            adapter.start()
 
-            result = await extract(
-                page,
-                group_id,
-                min_records=params.get("limit", 3),
-            )
+            try:
+                url = params.get("url") or f"https://web.facebook.com/groups/{group_id}"
+                await page.goto(url, wait_until="domcontentloaded")
+                await page.wait_for_timeout(3000)
+
+                html = await page.content()
+                relay_result = extract_from_relay(html, group_id, min_records=0)
+                adapter.merge_external(relay_result.records)
+
+                adapter.mark_scroll_started()
+
+                scroll_limit = params.get("scroll_limit", 3)
+                for _ in range(scroll_limit):
+                    await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                    await page.wait_for_timeout(2000)
+
+            finally:
+                await adapter.stop()
+
+            records = adapter.snapshot()
+
+            min_records = params.get("limit", 3)
+            degraded = adapter.has_scroll_phase_drops or len(records) < min_records
+
             return {
                 "activity": activity,
                 "params": params,
-                "results": result.records,
-                "warning": result.warning,
-                "failure_reason": result.failure_reason.value if result.failure_reason else None,
+                "results": records,
+                "counters": adapter.counters,
+                "degraded": degraded,
+                "warning": (
+                    f"{adapter.counters['scroll_phase_dropped']} response(s) dropped during scroll"
+                    if adapter.has_scroll_phase_drops else None
+                ),
             }
 
         raise NotImplementedError(f"unsupported activity: {activity}")
