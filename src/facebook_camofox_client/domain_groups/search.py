@@ -1,5 +1,6 @@
 """Groups search — first read-only vertical slice."""
 from __future__ import annotations
+import dataclasses
 
 from facebook_camofox_client.domain_actions.envelope import ActionEnvelope
 from facebook_camofox_client.domain_camofox.session_manager import CamofoxSessionManager
@@ -36,8 +37,9 @@ class GroupsSearchAction:
                 )
                 return GroupsSearchOutput(results=[], cursor={}, matched_terms=[])
 
-            # 2. extract — stub returns empty until DOM selectors are wired
+            # 2. extract
             raw_results = await session.execute("facebook_group_search", {
+                "group_id": input_data.group_ids[0],
                 "terms": input_data.terms,
                 "limit": input_data.limit,
             })
@@ -45,8 +47,9 @@ class GroupsSearchAction:
             # 3. normalize
             records = []
             for post in raw_results.get("results", []):
+                raw_dict = dataclasses.asdict(post) if hasattr(post, "__dataclass_fields__") else post
                 rec = self.normalizer.normalize(
-                    raw=post,
+                    raw=raw_dict,
                     account_id=envelope.account_id,
                     source_action=envelope.action_id
                 )
