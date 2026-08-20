@@ -5,6 +5,7 @@ from facebook_camofox_client.domain_cursors.repository import InMemoryCursorRepo
 from facebook_camofox_client.domain_events.emitter import InMemoryEventEmitter
 from facebook_camofox_client.domain_groups.search import GroupsSearchAction
 from facebook_camofox_client.domain_records.normalization import PostNormalizer
+from unittest.mock import AsyncMock, MagicMock
 
 
 class FakePage:
@@ -87,11 +88,6 @@ async def test_unsupported_activity_raises():
         await session.execute("unknown_activity", {})
 
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-from facebook_camofox_client.domain_groups.search import GroupsSearchAction
-from facebook_camofox_client.domain_actions.envelope import ActionEnvelope
-
 @pytest.mark.asyncio
 async def test_degraded_dom_fallbacks_excluded_from_clean_results():
     mock_page = AsyncMock()
@@ -134,5 +130,44 @@ async def test_degraded_dom_fallbacks_excluded_from_clean_results():
     completed_events = [c for c in mock_emitter.emit.await_args_list if c.args[0] == "groups.search_completed"]
     assert len(completed_events) == 1
     assert completed_events[0].args[1]["records_found"] == 1
+    assert completed_events[0].args[1]["degraded_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_all_degraded_page_returns_zero_result_found():
+    mock_page = AsyncMock()
+    mock_page.title.return_value = "Test Group | Facebook"
+    mock_page.url = "https://web.facebook.com/groups/999"
+    mock_session = AsyncMock()
+    mock_session.open_surface.return_value = mock_page
+    mock_session.execute.return_value = {
+        "results": [
+            {"post_id": "dom-unresolved-0", "group_id": "999", "author_name": None, "author_id": None, "text": "", "created_at": None, "permalink": "", "collected_at": "2026-08-20T12:00:00+00:00", "source": "dom"},
+            {"post_id": "dom-unresolved-1", "group_id": "999", "author_name": None, "author_id": None, "text": None, "created_at": None, "permalink": "", "collected_at": "2026-08-20T12:00:00+00:00", "source": "dom"}
+        ],
+        "warning": "DOM fallback used",
+        "failure_reason": None
+    }
+    mock_session_manager = AsyncMock()
+    mock_session_manager.acquire.return_value = mock_session
+    mock_normalizer = MagicMock()
+    mock_emitter = AsyncMock()
+    mock_cursor_repo = MagicMock()
+    action = GroupsSearchAction(mock_session_manager, mock_cursor_repo, mock_normalizer, mock_emitter)
+    envelope = ActionEnvelope(
+        action_id="test-degraded-only",
+        action_type="groups.search",
+        account_id="test-account",
+        input={"group_ids": ["999"], "terms": [], "limit": 3},
+        idempotency_key="test-degraded-k1"
+    )
+    result = await action.execute(envelope)
+    assert len(result.results) == 0
+    assert mock_normalizer.normalize.call_count == 0
+    result_found_events = [c for c in mock_emitter.emit.await_args_list if c.args[0] == "groups.result_found"]
+    assert len(result_found_events) == 0
+    completed_events = [c for c in mock_emitter.emit.await_args_list if c.args[0] == "groups.search_completed"]
+    assert len(completed_events) == 1
+    assert completed_events[0].args[1]["records_found"] == 0
     assert completed_events[0].args[1]["degraded_count"] == 2
 
