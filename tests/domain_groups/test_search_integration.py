@@ -87,7 +87,10 @@ async def test_unsupported_activity_raises():
         await session.execute("unknown_activity", {})
 
 
+import pytest
 from unittest.mock import AsyncMock, MagicMock
+from facebook_camofox_client.domain_groups.search import GroupsSearchAction
+from facebook_camofox_client.domain_actions.envelope import ActionEnvelope
 
 @pytest.mark.asyncio
 async def test_degraded_dom_fallbacks_excluded_from_clean_results():
@@ -132,3 +135,4 @@ async def test_degraded_dom_fallbacks_excluded_from_clean_results():
     assert len(completed_events) == 1
     assert completed_events[0].args[1]["records_found"] == 1
     assert completed_events[0].args[1]["degraded_count"] == 2
+
