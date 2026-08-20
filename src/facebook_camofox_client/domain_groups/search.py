@@ -44,16 +44,22 @@ class GroupsSearchAction:
                 "limit": input_data.limit,
             })
 
-            # 3. normalize
-            records = []
+            # 3. normalize — degraded DOM fallbacks and empty-text records are excluded
+            clean_records = []
+            degraded_count = 0
             for post in raw_results.get("results", []):
                 raw_dict = dataclasses.asdict(post) if hasattr(post, "__dataclass_fields__") else post
+
+                if raw_dict.get("source") == "dom" or not raw_dict.get("text"):
+                    degraded_count += 1
+                    continue
+
                 rec = self.normalizer.normalize(
                     raw=raw_dict,
                     account_id=envelope.account_id,
                     source_action=envelope.action_id
                 )
-                records.append(rec)
+                clean_records.append(rec)
                 await self.event_emitter.emit(
                     "groups.result_found",
                     {"action_id": envelope.action_id, "record_id": rec.record_id},
@@ -62,12 +68,16 @@ class GroupsSearchAction:
 
             await self.event_emitter.emit(
                 "groups.search_completed",
-                {"action_id": envelope.action_id, "records_found": len(records)},
+                {
+                    "action_id": envelope.action_id,
+                    "records_found": len(clean_records),
+                    "degraded_count": degraded_count,
+                },
                 dedupe_key=f"{envelope.action_id}-completed"
             )
 
             return GroupsSearchOutput(
-                results=[r.model_dump() for r in records],
+                results=[r.model_dump() for r in clean_records],
                 cursor={},
                 matched_terms=input_data.terms
             )

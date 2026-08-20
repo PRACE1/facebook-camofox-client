@@ -11,9 +11,9 @@ class PostNormalizer:
             external_id=raw.get("post_id", "") or raw.get("external_id", ""),
             account_id=account_id,
             group_id=raw.get("group_id", ""),
-            content=raw.get("content", "") or raw.get("message", ""),
+            content=raw.get("content", "") or raw.get("text", "") or raw.get("message", ""),
             url=raw.get("url", "") or raw.get("permalink", ""),
-            author={"id": raw.get("author_id", ""), "name": raw.get("author", "")},
+            author={"id": raw.get("author_id", ""), "name": raw.get("author", "") or raw.get("author_name", "")},
             occurred_at=raw.get("occurred_at") or datetime.now(UTC),
             metrics={
                 "likes": raw.get("likes", 0) or raw.get("metrics", {}).get("likes", 0),
