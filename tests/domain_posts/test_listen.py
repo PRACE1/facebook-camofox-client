@@ -61,7 +61,7 @@ def make_envelope(action_id="listen-1"):
 
 def make_normalizer():
     normalizer = MagicMock()
-    def fake_normalize(raw, account_id, source_action):
+    def fake_normalize(raw, account_id, source_action, expected_group_id=None):
         rec = MagicMock()
         rec.record_id = f"rec-{raw.get('post_id')}"
         rec.model_dump.return_value = {"record_id": rec.record_id, "post_id": raw.get("post_id")}

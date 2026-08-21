@@ -137,7 +137,7 @@ async def test_clean_records_reach_result_found_exactly_once_each():
 
     mock_normalizer = MagicMock()
     call_count = {"n": 0}
-    def fake_normalize(raw, account_id, source_action):
+    def fake_normalize(raw, account_id, source_action, expected_group_id=None):
         call_count["n"] += 1
         rec = MagicMock()
         rec.record_id = f"rec-{raw.get('post_id') or raw.post_id}"

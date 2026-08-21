@@ -135,7 +135,7 @@ async def test_unknown_surface_raises_and_releases():
 @pytest.mark.asyncio
 async def test_release_runs_even_when_normalize_raises():
     class ExplodingNormalizer:
-        def normalize(self, raw, account_id, source_action):
+        def normalize(self, raw, account_id, source_action, expected_group_id=None):
             raise RuntimeError("normalize failed")
 
     class SessionWithResults(FakeSession):

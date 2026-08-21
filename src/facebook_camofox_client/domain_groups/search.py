@@ -6,7 +6,7 @@ from facebook_camofox_client.domain_camofox.session_manager import CamofoxSessio
 from facebook_camofox_client.domain_cursors.repository import InMemoryCursorRepository
 from facebook_camofox_client.domain_events.emitter import InMemoryEventEmitter
 from facebook_camofox_client.domain_groups.schemas import GroupsSearchInput, GroupsSearchOutput
-from facebook_camofox_client.domain_records.normalization import PostNormalizer
+from facebook_camofox_client.domain_records.normalization import PostNormalizer, RejectedRecord
 
 
 def _is_degraded(post: dict) -> bool:
@@ -58,30 +58,37 @@ class GroupsSearchAction:
 
             counters = raw_results.get("counters", {}) or {}
             scroll_phase_dropped = counters.get("scroll_phase_dropped", 0)
+            expected_group_id = input_data.group_ids[0]
 
             # 3. classify degraded records, normalize only clean ones
             records = []
             degraded_count = 0
+            rejected_count = 0
             for post in raw_results.get("results", []):
-                # ExtractedPost dataclass or dict, normalize to dict either way
                 post_dict = post if isinstance(post, dict) else post.__dict__
 
                 if _is_degraded(post_dict):
                     degraded_count += 1
                     continue
 
-                rec = self.normalizer.normalize(
-                    raw={
-                        **post_dict,
-                        "group_id": post_dict.get("group_id") or "",
-                        "content": post_dict.get("content") or post_dict.get("text") or "",
-                        "url": post_dict.get("url") or post_dict.get("permalink") or "",
-                        "author": post_dict.get("author") or post_dict.get("author_name") or "",
-                        "occurred_at": post_dict.get("occurred_at") or post_dict.get("created_at"),
-                    },
-                    account_id=envelope.account_id,
-                    source_action=envelope.action_id
-                )
+                try:
+                    rec = self.normalizer.normalize(
+                        raw={
+                            **post_dict,
+                            "group_id": post_dict.get("group_id") or expected_group_id,
+                            "content": post_dict.get("content") or post_dict.get("text") or "",
+                            "url": post_dict.get("url") or post_dict.get("permalink") or "",
+                            "author": post_dict.get("author") or post_dict.get("author_name") or "",
+                            "occurred_at": post_dict.get("occurred_at") or post_dict.get("created_at"),
+                        },
+                        account_id=envelope.account_id,
+                        source_action=envelope.action_id,
+                        expected_group_id=expected_group_id,
+                    )
+                except RejectedRecord:
+                    rejected_count += 1
+                    continue
+
                 records.append(rec)
                 await self.event_emitter.emit(
                     "groups.result_found",
@@ -90,9 +97,10 @@ class GroupsSearchAction:
                 )
 
             # 4. coverage is degraded (not clean) if any responses were
-            # dropped during the active scroll phase — this is a real
-            # gap, not noise, per review. Never silently report clean.
-            is_degraded = scroll_phase_dropped > 0 or degraded_count > 0
+            # dropped during the active scroll phase, or any records
+            # were excluded — this is a real gap, not noise, per review.
+            # Never silently report clean.
+            is_degraded = scroll_phase_dropped > 0 or degraded_count > 0 or rejected_count > 0
 
             await self.event_emitter.emit(
                 "groups.search_completed",
@@ -100,6 +108,7 @@ class GroupsSearchAction:
                     "action_id": envelope.action_id,
                     "records_found": len(records),
                     "degraded_count": degraded_count,
+                    "rejected_count": rejected_count,
                     "scroll_phase_dropped": scroll_phase_dropped,
                     "degraded": is_degraded,
                 },

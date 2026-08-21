@@ -8,6 +8,11 @@ across a dropped/reconnected session.
 Reconnect safety: a fresh session re-extracts the same recent posts on
 every poll. The persisted cursor (last_post_id + watermark) is what
 filters out posts already emitted, not any in-memory session state.
+
+Identity safety: a record missing post_id/group_id, or belonging to the
+wrong group, is rejected individually (RejectedRecord) rather than
+crashing the whole poll or being silently normalized with fabricated
+empty-string/current-time fallbacks.
 """
 from __future__ import annotations
 
@@ -15,6 +20,7 @@ from datetime import datetime
 
 from facebook_camofox_client.domain_actions.envelope import ActionEnvelope
 from facebook_camofox_client.domain_posts.schemas import PostsListenInput, PostsListenOutput
+from facebook_camofox_client.domain_records.normalization import RejectedRecord
 
 
 def _parse_created_at(value):
@@ -84,6 +90,7 @@ class PostsListenAction:
 
             new_records = []
             degraded_count = 0
+            rejected_count = 0
             newest_watermark = watermark
             newest_post_id = last_post_id
 
@@ -104,20 +111,28 @@ class PostsListenAction:
                 if watermark is not None and created_at is not None and created_at <= watermark:
                     continue
 
-                rec = self.normalizer.normalize(
-                    raw={
-                        **post_dict,
-                        "group_id": post_dict.get("group_id") or group_id,
-                        "content": post_dict.get("content") or post_dict.get("text") or "",
-                        "url": post_dict.get("url") or post_dict.get("permalink") or "",
-                        "author": post_dict.get("author") or post_dict.get("author_name") or "",
-                        "occurred_at": created_at,
-                    },
-                    account_id=envelope.account_id,
-                    source_action=envelope.action_id,
-                )
-                new_records.append(rec)
+                try:
+                    rec = self.normalizer.normalize(
+                        raw={
+                            **post_dict,
+                            "group_id": post_dict.get("group_id") or group_id,
+                            "content": post_dict.get("content") or post_dict.get("text") or "",
+                            "url": post_dict.get("url") or post_dict.get("permalink") or "",
+                            "author": post_dict.get("author") or post_dict.get("author_name") or "",
+                            "occurred_at": created_at,
+                        },
+                        account_id=envelope.account_id,
+                        source_action=envelope.action_id,
+                        expected_group_id=group_id,
+                    )
+                except RejectedRecord:
+                    # A bad individual record must not crash the whole
+                    # poll or silently become a fabricated post — skip
+                    # it, count it, keep processing the rest.
+                    rejected_count += 1
+                    continue
 
+                new_records.append(rec)
                 if created_at is not None and (newest_watermark is None or created_at > newest_watermark):
                     newest_watermark = created_at
                     newest_post_id = post_id
@@ -129,7 +144,6 @@ class PostsListenAction:
                 )
 
             cursor_advanced = newest_watermark != watermark or newest_post_id != last_post_id
-
             if cursor_advanced:
                 from facebook_camofox_client.domain_cursors.models import Cursor
                 new_cursor = Cursor(
@@ -142,14 +156,14 @@ class PostsListenAction:
                 )
                 await self.cursor_repo.save(new_cursor)
 
-            is_degraded = scroll_phase_dropped > 0 or degraded_count > 0
-
+            is_degraded = scroll_phase_dropped > 0 or degraded_count > 0 or rejected_count > 0
             await self.event_emitter.emit(
                 "posts.listen_completed",
                 {
                     "action_id": envelope.action_id,
                     "new_count": len(new_records),
                     "degraded_count": degraded_count,
+                    "rejected_count": rejected_count,
                     "scroll_phase_dropped": scroll_phase_dropped,
                     "degraded": is_degraded,
                     "cursor_advanced": cursor_advanced,
@@ -169,5 +183,6 @@ class PostsListenAction:
                 dedupe_key=f"{envelope.action_id}-failed",
             )
             raise
+
         finally:
             await self.session_manager.release(session)
