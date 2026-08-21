@@ -11,8 +11,8 @@ from facebook_camofox_client.domain_groups.search import GroupsSearchAction
 from facebook_camofox_client.domain_records.normalization import PostNormalizer
 from facebook_camofox_client.domain_actions.envelope import ActionEnvelope
 
-COOKIES_FILE = r"C:\Users\R5 5600 GT\fb_cookies.json"
-GROUP_ID = "305056891435827"
+COOKIES_FILE = r"C:\Users\R5 5600 GT\fb_cookies_playwright.json"
+GROUP_ID = "879168359747629"
 
 async def main():
     print("=== Smoke Test: Real Facebook Group ===")

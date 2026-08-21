@@ -135,12 +135,12 @@ async def test_unknown_surface_raises_and_releases():
 @pytest.mark.asyncio
 async def test_release_runs_even_when_normalize_raises():
     class ExplodingNormalizer:
-        def normalize(self, raw, account_id, source_action):
+        def normalize(self, raw, account_id, source_action, expected_group_id=None):
             raise RuntimeError("normalize failed")
 
     class SessionWithResults(FakeSession):
         async def execute(self, activity, params):
-            return {"results": [{"post_id": "p1", "content": "test"}]}
+            return {"results": [{"post_id": "p1", "text": "test", "source": "relay"}]}
 
     session = SessionWithResults(FakePage())
     mgr = FakeSessionManager(session)
@@ -151,6 +151,8 @@ async def test_release_runs_even_when_normalize_raises():
         await action.execute(make_envelope())
 
     assert mgr.release_count == 1
+
+
 # --- Exact event payload assertions ---
 
 @pytest.mark.asyncio
@@ -159,7 +161,7 @@ async def test_happy_path_event_payloads_are_correct():
 
     class SessionWithOneResult(FakeSession):
         async def execute(self, activity, params):
-            return {"results": [{"post_id": "p1", "content": "crypto launch", "author": "Alice", "author_id": "alice1", "url": "https://facebook.com/posts/p1"}]}
+            return {"results": [{"post_id": "p1", "text": "crypto launch", "source": "relay"}]}
 
     session = SessionWithOneResult(page)
     mgr = FakeSessionManager(session)
@@ -189,7 +191,7 @@ async def test_normalized_record_shape():
 
     class SessionWithOneResult(FakeSession):
         async def execute(self, activity, params):
-            return {"results": [{"post_id": "p99", "content": "hello world", "author": "Bob", "author_id": "bob1", "url": "https://facebook.com/posts/p99", "likes": 5, "comments": 2, "shares": 1}]}
+            return {"results": [{"post_id": "p99", "text": "hello world", "author": "Bob", "author_id": "bob1", "url": "https://facebook.com/posts/p99", "likes": 5, "comments": 2, "shares": 1, "source": "relay"}]}
 
     session = SessionWithOneResult(page)
     mgr = FakeSessionManager(session)

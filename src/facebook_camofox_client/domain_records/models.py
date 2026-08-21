@@ -1,6 +1,8 @@
 """Normalized record models."""
 from datetime import datetime
+
 from pydantic import BaseModel, Field
+
 
 class NormalizedPostRecord(BaseModel):
     record_id: str
@@ -8,11 +10,14 @@ class NormalizedPostRecord(BaseModel):
     external_id: str
     source: str = "groups.search"
     account_id: str
-    group_id: str = ""
+    group_id: str
     content: str = ""
     url: str = ""
     author: dict = Field(default_factory=dict)
-    occurred_at: datetime = Field(default_factory=datetime.utcnow)
+    # Nullable: "timestamp unavailable" must stay null, never fabricated
+    # as "now". A missing occurred_at is real information, not a gap to
+    # paper over.
+    occurred_at: datetime | None = None
     metrics: dict = Field(default_factory=dict)
     matched_terms: list[str] = Field(default_factory=list)
     raw_extraction: dict | None = None
