@@ -15,7 +15,7 @@ crashing the whole poll or being silently normalized with fabricated
 empty-string/current-time fallbacks.
 """
 from __future__ import annotations
-
+from facebook_camofox_client.domain_extraction.post_extractor import post_to_dict
 from datetime import datetime
 
 from facebook_camofox_client.domain_actions.envelope import ActionEnvelope
@@ -46,11 +46,13 @@ def _is_degraded(post: dict) -> bool:
 class PostsListenAction:
     CURSOR_KEY = "posts-listen"
 
-    def __init__(self, session_manager, cursor_repo, normalizer, event_emitter):
+    def __init__(self, session_manager, cursor_repo, normalizer,
+                 event_emitter, commit):
         self.session_manager = session_manager
         self.cursor_repo = cursor_repo
         self.normalizer = normalizer
         self.event_emitter = event_emitter
+        self.commit = commit
 
     async def execute(self, envelope: ActionEnvelope) -> PostsListenOutput:
         input_data = PostsListenInput(**envelope.input)
@@ -95,7 +97,7 @@ class PostsListenAction:
             newest_post_id = last_post_id
 
             for post in raw_results.get("results", []):
-                post_dict = post if isinstance(post, dict) else post.__dict__
+                post_dict = post_to_dict(post)
 
                 if _is_degraded(post_dict):
                     degraded_count += 1
@@ -119,6 +121,8 @@ class PostsListenAction:
                             "content": post_dict.get("content") or post_dict.get("text") or "",
                             "url": post_dict.get("url") or post_dict.get("permalink") or "",
                             "author": post_dict.get("author") or post_dict.get("author_name") or "",
+                            "author_name": post_dict.get("author_name") or post_dict.get("author") or "",
+                            "author_id": post_dict.get("author_id") or "",
                             "occurred_at": created_at,
                         },
                         account_id=envelope.account_id,
@@ -126,9 +130,6 @@ class PostsListenAction:
                         expected_group_id=group_id,
                     )
                 except RejectedRecord:
-                    # A bad individual record must not crash the whole
-                    # poll or silently become a fabricated post — skip
-                    # it, count it, keep processing the rest.
                     rejected_count += 1
                     continue
 
@@ -137,11 +138,9 @@ class PostsListenAction:
                     newest_watermark = created_at
                     newest_post_id = post_id
 
-                await self.event_emitter.emit(
-                    "posts.new",
-                    {"action_id": envelope.action_id, "record_id": rec.record_id, "post_id": post_id},
-                    dedupe_key=f"{envelope.action_id}-{rec.record_id}",
-                )
+            # Commit all records before saving cursor or emitting
+            for rec in new_records:
+                await self.commit(rec)
 
             cursor_advanced = newest_watermark != watermark or newest_post_id != last_post_id
             if cursor_advanced:
@@ -155,6 +154,14 @@ class PostsListenAction:
                     watermark=newest_watermark,
                 )
                 await self.cursor_repo.save(new_cursor)
+
+            # Emit posts.new after cursor is durable
+            for rec in new_records:
+                await self.event_emitter.emit(
+                    "posts.new",
+                    {"action_id": envelope.action_id, "record_id": rec.record_id, "post_id": rec.external_id},
+                    dedupe_key=f"{envelope.action_id}-{rec.record_id}",
+                )
 
             is_degraded = scroll_phase_dropped > 0 or degraded_count > 0 or rejected_count > 0
             await self.event_emitter.emit(

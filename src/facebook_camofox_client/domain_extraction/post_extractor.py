@@ -287,3 +287,28 @@ async def extract(
         )
 
     return ExtractionResult(records=combined, warning="; ".join(warning_parts) or None)
+# ── Boundary helper (VIBE BOT) ──
+from collections.abc import Mapping
+from dataclasses import asdict, is_dataclass
+from typing import Any
+
+
+def post_to_dict(post: Any) -> dict[str, Any]:
+    """Convert ExtractedPost dataclass or mapping into a plain dict."""
+    if isinstance(post, Mapping):
+        return dict(post)
+    if is_dataclass(post) and not isinstance(post, type):
+        return asdict(post)
+    raise TypeError(f"expected ExtractedPost or mapping, got {type(post).__name__}")# ── Boundary helper (VIBE BOT) ──
+from collections.abc import Mapping
+from dataclasses import asdict, is_dataclass
+from typing import Any
+
+
+def post_to_dict(post: Any) -> dict[str, Any]:
+    """Convert ExtractedPost dataclass or mapping into a plain dict."""
+    if isinstance(post, Mapping):
+        return dict(post)
+    if is_dataclass(post) and not isinstance(post, type):
+        return asdict(post)
+    raise TypeError(f"expected ExtractedPost or mapping, got {type(post).__name__}")

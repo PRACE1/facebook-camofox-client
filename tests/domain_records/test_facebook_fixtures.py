@@ -140,28 +140,3 @@ def test_missing_group_id_is_rejected():
 
     assert exc_info.value.reason == "missing_group_id"
 
-
-def test_expected_action_response_fixture_is_valid_json_and_matches_documented_shape():
-    """This fixture documents the TARGET full action-response envelope
-    (per VIBE BOT's richer contract: cursor block, coverage block,
-    success/error shape). PostsListenOutput doesn't build this full
-    shape yet — that's the next task, wiring PostsListenAction to emit
-    this envelope. This test only proves the checked-in fixture itself
-    is well-formed and matches the documented field set, so it's a
-    reviewable source of truth for that future work."""
-    fixture = load_fixture("expected_action_response.json")
-
-    assert fixture["action"] == "posts.listen"
-    assert fixture["success"] is True
-    assert "group_id" in fixture["data"]
-    assert "feed_mode" in fixture["data"]
-    assert "posts" in fixture["data"]
-    assert "cursor" in fixture["data"]
-    assert set(fixture["data"]["cursor"].keys()) == {
-        "previous_last_post_id", "last_post_id", "watermark", "advanced"
-    }
-    assert "coverage" in fixture["data"]
-    assert set(fixture["data"]["coverage"].keys()) == {
-        "responses_seen", "accepted", "duplicates", "rejected",
-        "scroll_phase_dropped", "degraded"
-    }

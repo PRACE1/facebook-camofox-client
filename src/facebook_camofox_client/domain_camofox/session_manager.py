@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 import uuid
 from pathlib import Path
 from typing import Any
@@ -96,6 +97,9 @@ class CamofoxSessionManager:
         )
         browser = await runtime.__aenter__()
         context_kwargs: dict[str, Any] = {}
+        storage_state_path = storage_state_path or os.getenv(
+            f"CAMOFOX_STORAGE_STATE_{account_id.upper().replace('-', '_')}"
+        )
         if storage_state_path:
             context_kwargs["storage_state"] = str(Path(storage_state_path))
         context = await browser.new_context(**context_kwargs)

@@ -1,0 +1,38 @@
+[
+  {
+    "record_id": "rec-c70aba89e4ae",
+    "record_type": "facebook_post",
+    "external_id": "1430446928896812",
+    "source": "groups.search",
+    "account_id": "disposable-test",
+    "group_id": "305056891435827",
+    "content": "\ud83d\udd25 \ud83d\udd25GMW Station wagon. Petrol. 7 Seater. 2007 Model. Manual. 138Ks on the clock. New tyres. Perfect state. P 70K. Gabs. \n75020100.      76680706",
+    "url": "https://web.facebook.com/groups/305056891435827/posts/1430446928896812/",
+    "author": {
+      "id": null,
+      "name": null
+    },
+    "occurred_at": "2026-08-21 12:27:50+00:00",
+    "metrics": {
+      "likes": 0,
+      "comments": 0,
+      "shares": 0
+    },
+    "matched_terms": [],
+    "raw_extraction": {
+      "post_id": "1430446928896812",
+      "group_id": "305056891435827",
+      "author_name": null,
+      "author_id": null,
+      "text": "\ud83d\udd25 \ud83d\udd25GMW Station wagon. Petrol. 7 Seater. 2007 Model. Manual. 138Ks on the clock. New tyres. Perfect state. P 70K. Gabs. \n75020100.      76680706",
+      "created_at": "2026-08-21T12:27:50+00:00",
+      "permalink": "https://web.facebook.com/groups/305056891435827/posts/1430446928896812/",
+      "collected_at": "2026-08-21T12:35:38.326586+00:00",
+      "source": "network_response",
+      "content": "\ud83d\udd25 \ud83d\udd25GMW Station wagon. Petrol. 7 Seater. 2007 Model. Manual. 138Ks on the clock. New tyres. Perfect state. P 70K. Gabs. \n75020100.      76680706",
+      "url": "https://web.facebook.com/groups/305056891435827/posts/1430446928896812/",
+      "author": "",
+      "occurred_at": "2026-08-21T12:27:50+00:00"
+    }
+  }
+]

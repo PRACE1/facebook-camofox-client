@@ -1,0 +1,242 @@
+{
+  "mode": "live_unmocked",
+  "group_id": "305056891435827",
+  "account_id": "listen-group",
+  "new_posts": [
+    {
+      "record_id": "rec-580abe4b430f",
+      "record_type": "facebook_post",
+      "external_id": "1446594767282028",
+      "source": "groups.search",
+      "account_id": "listen-group",
+      "group_id": "305056891435827",
+      "content": "18k cash ready kopa any moving car",
+      "url": "https://web.facebook.com/groups/305056891435827/posts/1446594767282028/",
+      "author": {
+        "id": "",
+        "name": ""
+      },
+      "occurred_at": "2026-09-09T13:40:42Z",
+      "metrics": {
+        "likes": 0,
+        "comments": 0,
+        "shares": 0
+      },
+      "matched_terms": [],
+      "raw_extraction": {
+        "post_id": "1446594767282028",
+        "group_id": "305056891435827",
+        "author_name": "",
+        "author_id": "",
+        "text": "18k cash ready kopa any moving car",
+        "created_at": "2026-09-09T13:40:42+00:00",
+        "permalink": "https://web.facebook.com/groups/305056891435827/posts/1446594767282028/",
+        "collected_at": "2026-09-09T15:35:40.640962+00:00",
+        "source": "network_response",
+        "content": "18k cash ready kopa any moving car",
+        "url": "https://web.facebook.com/groups/305056891435827/posts/1446594767282028/",
+        "author": "",
+        "occurred_at": "2026-09-09T13:40:42Z"
+      }
+    },
+    {
+      "record_id": "rec-ca77d64e2814",
+      "record_type": "facebook_post",
+      "external_id": "1443850724223099",
+      "source": "groups.search",
+      "account_id": "listen-group",
+      "group_id": "305056891435827",
+      "content": "ke bo kae bluebook",
+      "url": "https://web.facebook.com/groups/305056891435827/posts/1443850724223099/",
+      "author": {
+        "id": "61579663261577",
+        "name": "Kaone Section"
+      },
+      "occurred_at": "2026-09-06T09:53:31Z",
+      "metrics": {
+        "likes": 0,
+        "comments": 0,
+        "shares": 0
+      },
+      "matched_terms": [],
+      "raw_extraction": {
+        "post_id": "1443850724223099",
+        "group_id": "305056891435827",
+        "author_name": "Kaone Section",
+        "author_id": "61579663261577",
+        "text": "ke bo kae bluebook",
+        "created_at": "2026-09-06T09:53:31+00:00",
+        "permalink": "https://web.facebook.com/groups/305056891435827/posts/1443850724223099/",
+        "collected_at": "2026-09-09T15:35:40.640962+00:00",
+        "source": "network_response",
+        "content": "ke bo kae bluebook",
+        "url": "https://web.facebook.com/groups/305056891435827/posts/1443850724223099/",
+        "author": "Kaone Section",
+        "occurred_at": "2026-09-06T09:53:31Z"
+      }
+    },
+    {
+      "record_id": "rec-2aff52da0243",
+      "record_type": "facebook_post",
+      "external_id": "1446649357276569",
+      "source": "groups.search",
+      "account_id": "listen-group",
+      "group_id": "305056891435827",
+      "content": "Mark 2 moveing problem  suspection.  for sale 15k in gabs 76585661",
+      "url": "https://web.facebook.com/groups/305056891435827/posts/1446649357276569/",
+      "author": {
+        "id": "61593730293691",
+        "name": "Pholoso Mogapi"
+      },
+      "occurred_at": "2026-09-09T14:56:19Z",
+      "metrics": {
+        "likes": 0,
+        "comments": 0,
+        "shares": 0
+      },
+      "matched_terms": [],
+      "raw_extraction": {
+        "post_id": "1446649357276569",
+        "group_id": "305056891435827",
+        "author_name": "Pholoso Mogapi",
+        "author_id": "61593730293691",
+        "text": "Mark 2 moveing problem  suspection.  for sale 15k in gabs 76585661",
+        "created_at": "2026-09-09T14:56:19+00:00",
+        "permalink": "https://web.facebook.com/groups/305056891435827/posts/1446649357276569/",
+        "collected_at": "2026-09-09T15:35:42.237143+00:00",
+        "source": "network_response",
+        "content": "Mark 2 moveing problem  suspection.  for sale 15k in gabs 76585661",
+        "url": "https://web.facebook.com/groups/305056891435827/posts/1446649357276569/",
+        "author": "Pholoso Mogapi",
+        "occurred_at": "2026-09-09T14:56:19Z"
+      }
+    },
+    {
+      "record_id": "rec-509cff7a273a",
+      "record_type": "facebook_post",
+      "external_id": "1446332243974947",
+      "source": "groups.search",
+      "account_id": "listen-group",
+      "group_id": "305056891435827",
+      "content": "epc problem 20k",
+      "url": "https://web.facebook.com/groups/305056891435827/posts/1446332243974947/",
+      "author": {
+        "id": "",
+        "name": ""
+      },
+      "occurred_at": "2026-09-09T06:45:17Z",
+      "metrics": {
+        "likes": 0,
+        "comments": 0,
+        "shares": 0
+      },
+      "matched_terms": [],
+      "raw_extraction": {
+        "post_id": "1446332243974947",
+        "group_id": "305056891435827",
+        "author_name": "",
+        "author_id": "",
+        "text": "epc problem 20k",
+        "created_at": "2026-09-09T06:45:17+00:00",
+        "permalink": "https://web.facebook.com/groups/305056891435827/posts/1446332243974947/",
+        "collected_at": "2026-09-09T15:35:43.785806+00:00",
+        "source": "network_response",
+        "content": "epc problem 20k",
+        "url": "https://web.facebook.com/groups/305056891435827/posts/1446332243974947/",
+        "author": "",
+        "occurred_at": "2026-09-09T06:45:17Z"
+      }
+    },
+    {
+      "record_id": "rec-69048c678db2",
+      "record_type": "facebook_post",
+      "external_id": "1446649680609870",
+      "source": "groups.search",
+      "account_id": "listen-group",
+      "group_id": "305056891435827",
+      "content": "TOYOTA IPSUM \nFOR SALE 15K\n MOVING  CAR\nFAULT:MOUNTING \n76585661",
+      "url": "https://web.facebook.com/groups/305056891435827/posts/1446649680609870/",
+      "author": {
+        "id": "61593730293691",
+        "name": "Pholoso Mogapi"
+      },
+      "occurred_at": "2026-09-09T14:56:38Z",
+      "metrics": {
+        "likes": 0,
+        "comments": 0,
+        "shares": 0
+      },
+      "matched_terms": [],
+      "raw_extraction": {
+        "post_id": "1446649680609870",
+        "group_id": "305056891435827",
+        "author_name": "Pholoso Mogapi",
+        "author_id": "61593730293691",
+        "text": "TOYOTA IPSUM \nFOR SALE 15K\n MOVING  CAR\nFAULT:MOUNTING \n76585661",
+        "created_at": "2026-09-09T14:56:38+00:00",
+        "permalink": "https://web.facebook.com/groups/305056891435827/posts/1446649680609870/",
+        "collected_at": "2026-09-09T15:35:44.996210+00:00",
+        "source": "network_response",
+        "content": "TOYOTA IPSUM \nFOR SALE 15K\n MOVING  CAR\nFAULT:MOUNTING \n76585661",
+        "url": "https://web.facebook.com/groups/305056891435827/posts/1446649680609870/",
+        "author": "Pholoso Mogapi",
+        "occurred_at": "2026-09-09T14:56:38Z"
+      }
+    }
+  ],
+  "cursor_advanced": true,
+  "events": [
+    {
+      "event_type": "posts.new",
+      "payload": {
+        "action_id": "live-posts-listen-acceptance-1",
+        "record_id": "rec-580abe4b430f",
+        "post_id": "1446594767282028"
+      }
+    },
+    {
+      "event_type": "posts.new",
+      "payload": {
+        "action_id": "live-posts-listen-acceptance-1",
+        "record_id": "rec-ca77d64e2814",
+        "post_id": "1443850724223099"
+      }
+    },
+    {
+      "event_type": "posts.new",
+      "payload": {
+        "action_id": "live-posts-listen-acceptance-1",
+        "record_id": "rec-2aff52da0243",
+        "post_id": "1446649357276569"
+      }
+    },
+    {
+      "event_type": "posts.new",
+      "payload": {
+        "action_id": "live-posts-listen-acceptance-1",
+        "record_id": "rec-509cff7a273a",
+        "post_id": "1446332243974947"
+      }
+    },
+    {
+      "event_type": "posts.new",
+      "payload": {
+        "action_id": "live-posts-listen-acceptance-1",
+        "record_id": "rec-69048c678db2",
+        "post_id": "1446649680609870"
+      }
+    },
+    {
+      "event_type": "posts.listen_completed",
+      "payload": {
+        "action_id": "live-posts-listen-acceptance-1",
+        "new_count": 5,
+        "degraded_count": 7,
+        "rejected_count": 0,
+        "scroll_phase_dropped": 0,
+        "degraded": true,
+        "cursor_advanced": true
+      }
+    }
+  ]
+}
