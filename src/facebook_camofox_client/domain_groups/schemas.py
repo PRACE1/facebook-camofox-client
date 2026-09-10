@@ -17,3 +17,15 @@ class GroupsSearchOutput(BaseModel):
     results: list[dict] = Field(default_factory=list)
     cursor: dict = Field(default_factory=dict)
     matched_terms: list[str] = Field(default_factory=list)
+
+
+class GroupPostInput(BaseModel):
+    group_id: str
+    message: str
+    image_paths: list[str] = Field(default_factory=list)
+    dry_run: bool = True
+
+
+class GroupPostOutput(BaseModel):
+    posted: bool = False
+    group_id: str | None = None
