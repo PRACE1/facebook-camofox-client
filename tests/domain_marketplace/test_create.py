@@ -1,5 +1,4 @@
 """Marketplace create action tests — fakes only, no browser."""
-import re
 
 import pytest
 

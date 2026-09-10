@@ -5,6 +5,8 @@ badges are source of truth. Maps card text -> ListingHealthStatus.
 """
 from __future__ import annotations
 
+import re
+
 from facebook_camofox_client.domain_marketplace.relist import ListingHealthStatus
 
 
@@ -31,33 +33,59 @@ def classify_dashboard_card(card_text: str, still_listed: bool = True) -> Listin
     return ListingHealthStatus.UNKNOWN
 
 
-async def check_dashboard_health(page, listing_id: str) -> tuple[ListingHealthStatus, str]:
-    """Open you/selling, find the card linking to listing_id, classify it.
-    Returns (status, card_text). Never fabricates: missing card -> UNKNOWN
-    unless the dashboard loaded fine with other cards (then DELETED_BY_FB)."""
+_CARD_JS = """(title) => {
+  const norm = (s) => (s || '').replace(/\\s+/g, ' ').trim();
+  // anchor on ONE long word: titles wrap across elements, so a multi-word
+  // conjunction can never match a single node.
+  const anchor = (norm(title).toLowerCase().split(/[^a-z]+/).find(w => w.length >= 5)) || '';
+  if (!anchor) return '';
+  const els = [...document.querySelectorAll('div,span')].filter(
+    e => e.children.length === 0 && norm(e.textContent).toLowerCase().includes(anchor));
+  for (const el of els) {
+    let p = el.parentElement, depth = 0, txt = '';
+    while (p && depth < 8) { txt = norm(p.innerText); if (txt.length > 120) break; p = p.parentElement; depth++; }
+    if (/active|review|duplicate|sold|pending|clicks on listing/i.test(txt)) return txt.slice(0, 800);
+  }
+  return '';
+}"""
+
+
+async def check_dashboard_health(page, listing_id: str, title: str = "") -> tuple[ListingHealthStatus, str]:
+    """Open you/selling, find the card by exact title text (cards are NOT
+    anchors — zero /item/ hrefs on the dashboard), classify its badges.
+    Returns (status, card_text). Missing card on a healthy dashboard with
+    other cards -> DELETED_BY_FB; else UNKNOWN (never fabricate)."""
     await page.goto("https://www.facebook.com/marketplace/you/selling",
                     wait_until="domcontentloaded")
-    await page.wait_for_timeout(5000)
-    for _ in range(6):
+    await page.wait_for_timeout(4000)
+    try:  # land on Seller dashboard by default; cards live under Your listings
+        tab = page.get_by_text(re.compile(r"^Your listings$", re.IGNORECASE)).first
+        if await tab.count() > 0:
+            await tab.click(timeout=5000)
+            await page.wait_for_timeout(2000)
+    except Exception:
+        pass
+    for _ in range(8):
         try:
             await page.evaluate("window.scrollBy(0, 900)")
         except Exception:
             pass
         await page.wait_for_timeout(2000)
-    try:
-        hrefs = await page.evaluate(
-            """() => Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]')).map(a=>({href:a.getAttribute('href')||'',card:(a.innerText||'').slice(0,300)}))""")
-    except Exception:
-        return ListingHealthStatus.UNKNOWN, ""
-    mine = [h for h in hrefs if listing_id in (h.get("href") or "")]
-    if mine:
-        return classify_dashboard_card(mine[0].get("card", ""), still_listed=True), mine[0].get("card", "")
+        if title:
+            try:
+                card = await page.evaluate(_CARD_JS, title)
+                if card:
+                    return classify_dashboard_card(card, still_listed=True), card
+            except Exception:
+                pass
     try:
         body = await page.locator("body").inner_text(timeout=5000)
     except Exception:
         return ListingHealthStatus.UNKNOWN, ""
-    if "your listings" in (body or "").lower() and listing_id not in (body or ""):
-        # dashboard healthy but our card is gone
-        if hrefs:
-            return ListingHealthStatus.DELETED_BY_FB, ""
+    low_body = (body or "").lower()
+    # other cards rendered but ours is absent -> genuinely gone
+    if ("your listings" in low_body
+            and ("clicks on listing" in low_body or "mark as sold" in low_body)
+            and (not title or title.lower() not in low_body)):
+        return ListingHealthStatus.DELETED_BY_FB, ""
     return ListingHealthStatus.UNKNOWN, ""

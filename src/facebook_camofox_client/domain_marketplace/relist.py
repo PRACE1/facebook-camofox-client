@@ -6,7 +6,7 @@ Adapted to this repo's layout (domain_marketplace, not facebook_client/domain).
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 
 from pydantic import BaseModel, Field
@@ -41,10 +41,11 @@ class MonitoredListing(BaseModel):
     root_listing_id: str
     parent_listing_id: str | None = None
     generation: int = 0
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     last_checked_at: datetime | None = None
     status: ListingHealthStatus = ListingHealthStatus.UNDER_REVIEW
     # repost offer payload (spintax templates + photo pool)
+    title: str = ""  # exact current card title (dashboard cards are not links)
     title_tpl: str = ""
     desc_tpl: str = ""
     photo_pool: list[str] = Field(default_factory=list)
@@ -60,10 +61,10 @@ def is_due(listing: MonitoredListing, now: datetime | None = None) -> bool:
     """Cooldown gate: repost only after next_eligible_at passes."""
     if listing.next_eligible_at is None:
         return True
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     eligible = listing.next_eligible_at
     if eligible.tzinfo is None:
-        eligible = eligible.replace(tzinfo=timezone.utc)
+        eligible = eligible.replace(tzinfo=UTC)
     return now >= eligible
 
 
@@ -78,8 +79,9 @@ class RelistDecision(BaseModel):
 def evaluate_relist_trigger(
     listing: MonitoredListing,
     detected_status: ListingHealthStatus,
-    config: RelistPolicyConfig = RelistPolicyConfig(),
+    config: RelistPolicyConfig | None = None,
 ) -> RelistDecision:
+    config = config or RelistPolicyConfig()
     # 1. hard safety guards: never repost on policy/ban/checkpoint
     if detected_status in (
         ListingHealthStatus.POLICY_VIOLATION,

@@ -15,10 +15,10 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from facebook_camofox_client.domain_actions.envelope import ActionEnvelope
 from facebook_camofox_client.domain_camofox.session_manager import CamofoxSessionManager
@@ -124,4 +124,4 @@ async def watch_list(_: None = Depends(_api_key)):
 
 @app.get("/healthz")
 async def healthz():
-    return {"ok": True, "at": datetime.now(timezone.utc).isoformat()}
+    return {"ok": True, "at": datetime.now(UTC).isoformat()}

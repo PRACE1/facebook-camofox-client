@@ -5,5 +5,6 @@ tests/fixtures/groups_search/
 
 # local run artifacts: screenshots/HTML dumps (often contain live listing data)
 /artifacts/
+/state/
 /*.png
 /*.html

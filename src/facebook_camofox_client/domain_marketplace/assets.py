@@ -33,8 +33,8 @@ def render_spintax(template: str, rng: random.Random | None = None) -> str:
 
 
 def pick_pool_photo(pool: list[str], exclude: list[str] | None = None) -> str | None:
-    exclude = set(exclude or [])
-    cands = [p for p in pool if p not in exclude and Path(p).exists()]
+    excluded = set(exclude or [])
+    cands = [p for p in pool if p not in excluded and Path(p).exists()]
     if not cands:
         cands = [p for p in pool if Path(p).exists()]
     return random.choice(cands) if cands else None
@@ -51,7 +51,7 @@ def mutate_photo(src: str, dest_dir: str | Path, seed: int | None = None) -> tup
         dest = dest_dir / f"{stem}_poolcopy_{rng.randint(1000, 9999)}{Path(src).suffix}"
         dest.write_bytes(Path(src).read_bytes())
         return str(dest), False
-    img = Image.open(src)
+    img: Image.Image = Image.open(src)
     w, h = img.size
     cx, cy = rng.uniform(0.02, 0.04), rng.uniform(0.02, 0.04)
     img = img.crop((int(w * cx), int(h * cy), w - int(w * cx), h - int(h * cy)))

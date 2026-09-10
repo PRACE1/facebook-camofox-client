@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import re
 
-
 LISTBOX = 'div[role="listbox"]'
 OPTIONS = 'div[role="listbox"] [role="option"]'
 PORTAL = 'div[role="listbox"], div[role="dialog"], div[role="menu"], ul[role="listbox"]'
@@ -40,7 +39,7 @@ async def portal_visible(page, opener=None) -> bool:
 async def open_combobox(page, name: str) -> bool:
     """Open label[role=combobox]. Category is a dialog/popover (no
     aria-haspopup), Condition/Availability are listboxes — accept either."""
-    opener = page.locator('label[role="combobox"]', has_text=re.compile(name, re.I)).first
+    opener = page.locator('label[role="combobox"]', has_text=re.compile(name, re.IGNORECASE)).first
     if await opener.count() == 0:
         return False
     await opener.scroll_into_view_if_needed()
@@ -113,9 +112,9 @@ async def pick_option(page, want: str) -> bool:
                 await search.fill("", timeout=4000)
                 await search.type(want, delay=30)
                 await page.wait_for_timeout(1500)
-            btn = dlg.get_by_role("button", name=re.compile(re.escape(want), re.I)).first
+            btn = dlg.get_by_role("button", name=re.compile(re.escape(want), re.IGNORECASE)).first
             if await btn.count() == 0:
-                btn = page.get_by_role("button", name=re.compile(re.escape(want), re.I)).first
+                btn = page.get_by_role("button", name=re.compile(re.escape(want), re.IGNORECASE)).first
             await btn.wait_for(state="visible", timeout=8000)
             await btn.click(timeout=5000)
             return True

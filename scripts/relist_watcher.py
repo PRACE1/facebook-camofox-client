@@ -17,7 +17,7 @@ import json
 import os
 import random
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, "src")
@@ -63,11 +63,12 @@ async def run_cycle(watchlist_path: str, config: RelistPolicyConfig) -> int:
         session = await manager.acquire(listing.account_id)
         try:
             page = await session.new_page()
-            status, card = await check_dashboard_health(page, listing.current_listing_id)
+            status, card = await check_dashboard_health(
+                page, listing.current_listing_id, getattr(listing, "title", ""))
         finally:
             await manager.release(session)
         listing.status = status
-        listing.last_checked_at = datetime.now(timezone.utc)
+        listing.last_checked_at = datetime.now(UTC)
         decision = evaluate_relist_trigger(listing, status, config)
         print(f"[{listing.current_listing_id}] {status.value} -> {decision.reason}")
         await emitter.emit(
@@ -111,7 +112,7 @@ async def run_cycle(watchlist_path: str, config: RelistPolicyConfig) -> int:
                     ).model_dump(mode="json"))
                     continue
                 listing.next_eligible_at = (
-                    datetime.now(timezone.utc) + timedelta(seconds=decision.cooldown_seconds))
+                    datetime.now(UTC) + timedelta(seconds=decision.cooldown_seconds))
                 print(f"  repost failed; cooling down until {listing.next_eligible_at}.")
         out_items.append(listing.model_dump(mode="json"))
     state_file.write_text(json.dumps(out_items, indent=2, default=str), encoding="utf-8")

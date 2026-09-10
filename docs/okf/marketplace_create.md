@@ -65,3 +65,20 @@ Status input: `{"listing_id": "38629807913299080"}`.
 - Group post action not yet built (reuse session + form driver).
 - `CamofoxSession.new_page()` added as the write-action seam;
   read actions still use `open_surface`/`execute`.
+
+## addendum 2026-09-10 (all live-verified since)
+
+- `CATEGORY_MAP` (`domain_marketplace/categories.py`): 13 hardcoded
+  entries; unknown categories fail loud before any browser launches.
+- Receipt = metadata + screenshot path (`success`, `published_at`,
+  `listing_id`, `url`, `screenshot_path`); HTML stays a debug sidecar.
+- REST: `api/app.py` — `POST /api/listings` (dry_run defaults true),
+  `GET /api/listings/{id}/status`, `POST/GET /api/watchlist`,
+  `GET /healthz`; served live on :8124, dry-run + status both 200.
+- Relist watcher (`relist.py`, `health.py`, `assets.py`,
+  `scripts/relist_watcher.py`): dashboard badges are source of truth —
+  public item pages cache for hours AND dashboard cards are NOT anchors
+  (zero `/item/` hrefs; match by title text, single long-word anchor
+  because titles wrap across elements). Live cycle reads ACTIVE correctly.
+- `1583545526797714` cleared review to `active`; photo swapped to
+  `rubbish_galway_02.jpg` (2/10) via the dashboard modal path.

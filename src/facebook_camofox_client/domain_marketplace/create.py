@@ -122,10 +122,10 @@ class MarketplaceCreateAction:
                     receipt_path=filled.screenshot_path if filled else None,
                 )
 
-            await driver.wait_enabled_and_click(page, re.compile(r"^Next$", re.I))
+            await driver.wait_enabled_and_click(page, re.compile(r"^Next$", re.IGNORECASE))
             await page.wait_for_timeout(3000)
             await driver.wait_enabled_and_click(
-                page, re.compile(r"^(Publish|Share|Post)$", re.I), timeout=15000)
+                page, re.compile(r"^(Publish|Share|Post)$", re.IGNORECASE), timeout=15000)
             await page.wait_for_timeout(5000)
             shot = await self._save_debug(page, f"after_publish_{envelope.action_id}")
 

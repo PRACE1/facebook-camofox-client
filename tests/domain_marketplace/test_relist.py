@@ -2,6 +2,7 @@
 
 Asset photo tests use a generated bitmap (no real listing data)."""
 import random
+from datetime import UTC
 
 from PIL import Image
 
@@ -87,11 +88,11 @@ def test_build_replacement_picks_pool(tmp_path):
 
 
 def test_is_due_gates_cooldown():
-    from datetime import datetime, timedelta, timezone
+    from datetime import datetime, timedelta
     assert is_due(base_listing()) is True
     future = base_listing()
-    future.next_eligible_at = datetime.now(timezone.utc) + timedelta(hours=2)
+    future.next_eligible_at = datetime.now(UTC) + timedelta(hours=2)
     assert is_due(future) is False
     past = base_listing()
-    past.next_eligible_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+    past.next_eligible_at = datetime.now(UTC) - timedelta(minutes=1)
     assert is_due(past) is True
