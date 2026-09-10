@@ -19,6 +19,25 @@ OUT = Path("artifacts/demo_story.mp4")
 W, H = 1280, 720
 VF = ("scale=1280:720:force_original_aspect_ratio=decrease,"
       "pad=1280:720:(ow-iw)/2:(oh-ih)/2,fps=30")
+FONT_FF = "artifacts/story/arial.ttf"  # colon-free relative path (filter parser chokes on C:)
+
+
+def ensure_font() -> None:
+    if not Path(FONT_FF).exists():
+        import shutil
+
+        shutil.copyfile("C:\\Windows\\Fonts\\arial.ttf", FONT_FF)
+
+
+def ff_escape(text: str) -> str:
+    return (text.replace("\\", "\\\\").replace(":", "\\:")
+            .replace(",", "\\,").replace("'", "\\\u2019").replace('"', ""))
+
+
+def caption_vf(text: str) -> str:
+    return (f"drawtext=fontfile={FONT_FF}:text='{ff_escape(text)}':"
+            f"fontsize=30:fontcolor=white:borderw=2:bordercolor=black@0.7:"
+            f"x=(w-text_w)/2:y=h-64")
 CARD_SECONDS = 3.0
 FRAME_SECONDS = 1.5
 FONT = "C:\\Windows\\Fonts\\arial.ttf"
@@ -27,21 +46,25 @@ STAGES = [
     ("Facebook Marketplace automation — end to end",
      "This is our Facebook Marketplace pipeline. Watch a listing get filled, "
      "published, receipted, and health-checked. All automated, all verified.",
-     ["__intro_card_only__"]),
+     ["__intro_card_only__"],
+     "Every step receipted - screenshots prove each run"),
     ("Step 1 — form fill (dry run)",
      "First, a dry run. The bot opens the create form, picks the category, "
      "uploads photos, types the title, price, description, and location, then "
      "stops before publishing. Receipt saved.",
-     ["form_filled"]),
+     ["form_filled"],
+     "Bot fills the form - mouse moves, keys type, then stops"),
     ("Step 2 — publish + receipt",
      "Then the real publish. Next, publish, and the listing ID is captured "
      "straight off the seller dashboard. Screenshot receipt, done.",
-     ["after_publish", "listing_captured"]),
+     ["after_publish", "listing_captured"],
+     "Publish clicked - ID scraped - receipt saved"),
     ("Step 3 — health watcher",
      "Finally, the watcher. It reads the live dashboard badges, classifies "
      "the listing as active, and only reposts on real takedowns, never on "
      "bans. Thirty nine tests green.",
-     ["composer_filled", "after_upload"]),
+     ["composer_filled", "after_upload"],
+     "Watcher reads badges - ACTIVE - no repost needed"),
 ]
 
 
@@ -110,10 +133,12 @@ def normalize(frame: Path, idx: int) -> Path:
 def main() -> int:
     no_audio = "--no-audio" in sys.argv
     WORK.mkdir(parents=True, exist_ok=True)
+    ensure_font()
     seg_videos, seg_audios, seg_durs = [], [], []
-    for i, (title, narration, filt) in enumerate(STAGES):
+    for i, (title, narration, filt, caption) in enumerate(STAGES):
         frames = [normalize(p, n) for n, p in enumerate(frames_for(filt), start=i * 100)]
         card_path = card(title, WORK / f"card_{i}.png")
+        seg_vf = VF + "," + caption_vf(caption)
         dur = CARD_SECONDS + FRAME_SECONDS * len(frames)
         seg_durs.append(dur)
         lst = WORK / f"seg_{i}.txt"
@@ -125,11 +150,11 @@ def main() -> int:
         seg = WORK / f"seg_{i}.mp4"
         if frames:
             run(["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(lst),
-                 "-vf", VF,
+                 "-vf", seg_vf,
                  "-fps_mode", "cfr", "-pix_fmt", "yuv420p", str(seg)])
         else:  # card only: concat demuxer emits nothing for a lone still
             run(["ffmpeg", "-y", "-loop", "1", "-i", str(card_path),
-                 "-vf", VF,
+                 "-vf", seg_vf,
                  "-t", str(CARD_SECONDS), "-fps_mode", "cfr", "-pix_fmt", "yuv420p", str(seg)])
         seg_videos.append(seg)
         if not no_audio:
