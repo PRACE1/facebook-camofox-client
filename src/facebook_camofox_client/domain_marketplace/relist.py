@@ -44,6 +44,27 @@ class MonitoredListing(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     last_checked_at: datetime | None = None
     status: ListingHealthStatus = ListingHealthStatus.UNDER_REVIEW
+    # repost offer payload (spintax templates + photo pool)
+    title_tpl: str = ""
+    desc_tpl: str = ""
+    photo_pool: list[str] = Field(default_factory=list)
+    used_photos: list[str] = Field(default_factory=list)
+    price: str = "50"
+    category: str = "Household"
+    location: str = "Galway, Ireland"
+    next_eligible_at: datetime | None = None
+    superseded_by: str | None = None
+
+
+def is_due(listing: MonitoredListing, now: datetime | None = None) -> bool:
+    """Cooldown gate: repost only after next_eligible_at passes."""
+    if listing.next_eligible_at is None:
+        return True
+    now = now or datetime.now(timezone.utc)
+    eligible = listing.next_eligible_at
+    if eligible.tzinfo is None:
+        eligible = eligible.replace(tzinfo=timezone.utc)
+    return now >= eligible
 
 
 class RelistDecision(BaseModel):

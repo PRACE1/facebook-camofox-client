@@ -17,9 +17,11 @@ class MarketplaceCreateInput(BaseModel):
 
 class MarketplaceCreateOutput(BaseModel):
     published: bool = False
+    success: bool = False
     listing_id: str | None = None
     listing_url: str | None = None
-    receipt_path: str | None = None
+    published_at: str | None = None
+    receipt_path: str | None = None  # screenshot only, never raw HTML
 
 
 class MarketplaceStatusInput(BaseModel):

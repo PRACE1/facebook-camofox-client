@@ -16,6 +16,7 @@ from facebook_camofox_client.domain_marketplace.relist import (
     MonitoredListing,
     RelistPolicyConfig,
     evaluate_relist_trigger,
+    is_due,
 )
 
 
@@ -83,3 +84,14 @@ def test_build_replacement_picks_pool(tmp_path):
     rep = build_replacement("{Hi|Hello} {A|B}", "d {x|y}", [str(p1)], tmp_path / "out", seed=3)
     assert rep["image_path"].endswith(".jpg") and rep["pixels_mutated"] is True
     assert "{" not in rep["title"]
+
+
+def test_is_due_gates_cooldown():
+    from datetime import datetime, timedelta, timezone
+    assert is_due(base_listing()) is True
+    future = base_listing()
+    future.next_eligible_at = datetime.now(timezone.utc) + timedelta(hours=2)
+    assert is_due(future) is False
+    past = base_listing()
+    past.next_eligible_at = datetime.now(timezone.utc) - timedelta(minutes=1)
+    assert is_due(past) is True

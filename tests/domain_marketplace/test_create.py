@@ -128,3 +128,32 @@ async def test_category_miss_emits_failed(monkeypatch):
     assert out.published is False
     failed = [e for e in emitter.events if e.event_type == "marketplace.create_failed"]
     assert failed and failed[0].payload["reason"] == "category_not_opened"
+
+
+@pytest.mark.asyncio
+async def test_unknown_category_fails_before_browser(monkeypatch):
+    called = []
+
+    class NoSessionManager:
+        async def acquire(self, account_id, **k):
+            called.append(account_id)
+            raise AssertionError("browser must not launch for unknown category")
+
+        async def release(self, session): pass
+
+    emitter = InMemoryEventEmitter()
+    out = await MarketplaceCreateAction(NoSessionManager(), emitter).execute(
+        make_envelope(category="Starships"))
+    assert out.published is False and out.success is False
+    assert called == []
+    failed = [e for e in emitter.events if e.event_type == "marketplace.create_failed"]
+    assert failed and failed[0].payload["reason"] == "unknown_category"
+
+
+def test_resolve_category():
+    from facebook_camofox_client.domain_marketplace.categories import resolve_category
+    assert resolve_category("household") == "Household"
+    assert resolve_category("Household") == "Household"
+    assert resolve_category("SERVICES") == "Services"
+    assert resolve_category("Starships") is None
+    assert resolve_category("") is None
