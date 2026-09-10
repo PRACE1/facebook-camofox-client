@@ -15,15 +15,16 @@ async def _fake_commit(_):
 
 def make_normalizer():
     class FakeNormalizer:
-        def normalize(self, post, account_id, source_action):
+        def normalize(self, raw, account_id, source_action, expected_group_id=None):
             from facebook_camofox_client.domain_records.models import NormalizedPostRecord
+            post = raw
             return NormalizedPostRecord(
                 account_id=account_id,
                 record_id=f"rec-{post['post_id']}",
                 record_type="facebook_post",
                 external_id=post["post_id"],
                 group_id=post.get("group_id", "305056891435827"),
-                content=post.get("text", ""),
+                content=post.get("content") or post.get("text", ""),
                 permalink=post.get("permalink", ""),
                 occurred_at=post.get("occurred_at") or datetime.now(timezone.utc),
                 author_name=post.get("author_name"),
