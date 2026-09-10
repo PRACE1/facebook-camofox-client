@@ -52,10 +52,18 @@ Status input: `{"listing_id": "38629807913299080"}`.
   the same placeholder PNG + title; account now holds 3-4 dupes).
 - Live dry-run through the action: `published=False`,
   `marketplace.create_completed(dry_run=True)`, receipts saved.
-- Unit: `tests/domain_marketplace` — 7 passed (fakes, no browser).
-- Pre-existing failure (not from this change): 3x `tests/domain_posts`
-  fail on clean tree too (`FakeNormalizer.normalize() got unexpected
-  keyword 'raw'`).
+- Unit: `tests/domain_marketplace` green; full suite (minus
+  `tests/domain_connectors`, see below): **63 passed**.
+- The 3 `tests/domain_posts` fake-normalizer failures noted earlier are
+  FIXED (`3f97e87`: fake synced to `(raw, account_id, source_action,
+  expected_group_id=None)` — note the reviewer's `raw: bool = False`
+  sketch would mistype `raw` (it is a dict) and drop the group guard;
+  the committed fix keeps both).
+- Pre-existing upstream breakage, NOT from this work (`listen.py` and
+  connectors untouched since `bc460bc`): `tests/domain_connectors/
+  test_openmagpie_commit.py` fails at collection —
+  `cannot import name 'CommitFailed' from domain_posts.listen`
+  (no such symbol exists there). Left for the repo owners.
 
 ## limitations / follow-up
 
