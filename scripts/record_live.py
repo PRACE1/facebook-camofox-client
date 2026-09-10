@@ -21,14 +21,14 @@ def main() -> int:
     Path(out).parent.mkdir(parents=True, exist_ok=True)
     cap = subprocess.Popen(
         ["ffmpeg", "-y", "-f", "gdigrab", "-framerate", "30", "-i", "desktop",
-         "-pix_fmt", "yuv420p", out])
+         "-pix_fmt", "yuv420p", out],
+        stdin=subprocess.PIPE)
     try:
         r = subprocess.run(cmd)
         code = r.returncode
     finally:
-        cap.terminate()
-        try:
-            cap.wait(timeout=10)
+        try:  # graceful 'q' finalizes the MP4 trailer; terminate() corrupts it
+            cap.communicate(input=b"q", timeout=15)
         except Exception:
             cap.kill()
     print(f"footage: {out} (cmd exit {code})")
