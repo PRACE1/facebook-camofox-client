@@ -1,10 +1,12 @@
 """Record the live desktop while a command runs — genuine mouse footage.
 
-Starts ffmpeg gdigrab on the desktop, runs the target command, stops capture.
-Use for the next live run so the demo shows the real mouse moving/typing.
+Captures the whole desktop by default; pass --title to capture ONLY the
+window whose title contains a substring (e.g. the automation browser),
+or --crop W:H:X:Y to clip a region. Keeps terminal/tabs/taskbar out.
 
 Usage (CMD):
   python scripts\\record_live.py artifacts\\live_run.mp4 -- python scripts\\run_marketplace_create_dryrun.py
+  python scripts\\record_live.py artifacts\\live_run.mp4 --title Facebook -- python scripts\\run_marketplace_create_dryrun.py
 Output: the given mp4 path (gitignored dirs recommended).
 Windows-only (gdigrab). Stop: command exit stops capture automatically.
 """
@@ -14,15 +16,29 @@ from pathlib import Path
 
 
 def main() -> int:
-    if len(sys.argv) < 4 or sys.argv[2] != "--":
-        print("usage: python scripts\\record_live.py <out.mp4> -- <command...>")
+    args = sys.argv[1:]
+    title, crop = None, None
+    while args and args[0].startswith("--"):
+        flag = args.pop(0)
+        if flag == "--title":
+            title = args.pop(0)
+        elif flag == "--crop":
+            crop = args.pop(0)
+        else:
+            print(f"unknown flag {flag}")
+            return 2
+    if "--" not in args or len(args) < 3:
+        print("usage: python scripts\\record_live.py [--title SUB] [--crop W:H:X:Y] <out.mp4> -- <command...>")
         return 2
-    out, cmd = sys.argv[1], sys.argv[3:]
+    out = args[0]
+    cmd = args[2:]
     Path(out).parent.mkdir(parents=True, exist_ok=True)
-    cap = subprocess.Popen(
-        ["ffmpeg", "-y", "-f", "gdigrab", "-framerate", "30", "-i", "desktop",
-         "-pix_fmt", "yuv420p", out],
-        stdin=subprocess.PIPE)
+    source = f"title={title}" if title else "desktop"
+    grab = ["ffmpeg", "-y", "-f", "gdigrab", "-framerate", "30", "-i", source]
+    if crop:
+        grab += ["-vf", f"crop={crop}"]
+    grab += ["-pix_fmt", "yuv420p", out]
+    cap = subprocess.Popen(grab, stdin=subprocess.PIPE)
     try:
         r = subprocess.run(cmd)
         code = r.returncode
