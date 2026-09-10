@@ -18,9 +18,16 @@ class CamofoxSession:
         if surface != "facebook_group":
             raise ValueError(f"unsupported surface: {surface}")
         url = target.get("url") or f"https://facebook.com/groups/{target['group_id']}"
-        page = await self.context.new_page()
+        page = await self.new_page()
         await page.goto(url, wait_until="domcontentloaded")
         return page
+
+    async def new_page(self):
+        """Raw page for write actions (marketplace create/status).
+
+        Read actions go through open_surface/execute; write actions need
+        direct page access for the combobox-portal form driver."""
+        return await self.context.new_page()
 
     async def execute(self, activity: str, params: dict[str, Any]) -> dict[str, Any]:
         if activity == "facebook_group_search":
