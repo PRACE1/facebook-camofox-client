@@ -14,16 +14,14 @@ RECEIPTS_DIR = Path("artifacts/receipts")
 RECEIPTS_DIR.mkdir(parents=True, exist_ok=True)
 
 PAYLOAD = {
-    "title": "Rubbish Removal in Galway",
+    "title": "Rubbish Removal & Clearance in Galway",
     "price": "50",
     "category": "Household",
     "condition": "Used – fair",
-    "description": "Fast and reliable rubbish clearance across Galway. Message for a quick quote.",
+    "description": "Yard, shed and household rubbish cleared across Galway city and county. Send a photo of the load for a same-day quote.",
     "location": "Galway, Ireland",
     "image_paths": [
-        # spike placeholder: any real image enables Next (Photos 0/10 blocks it).
-        # Replace with your product .jpg before real publish.
-        str(Path(__file__).parent.parent / "tests" / "fixtures" / "groups_search" / "group_305056891435827_20260817T204349.png"),
+        str(Path(__file__).parent.parent / "tests" / "fixtures" / "rubbish_galway_01.jpg"),
     ],
 }
 
