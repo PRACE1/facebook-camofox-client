@@ -94,7 +94,10 @@ class CamofoxSessionManager:
         account_id: str,
         proxy_config: dict[str, Any] | None = None,
         storage_state_path: str | None = None,
+        cookies: list[dict] | None = None,
     ) -> CamofoxSession:
+        """cookies: raw CRM Chrome-export list, injected in-process via
+        cookie_hydration (takes precedence over storage_state file)."""
         from camoufox.async_api import AsyncCamoufox
 
         runtime = AsyncCamoufox(
@@ -104,12 +107,18 @@ class CamofoxSessionManager:
         )
         browser = await runtime.__aenter__()
         context_kwargs: dict[str, Any] = {}
-        storage_state_path = storage_state_path or os.getenv(
-            f"CAMOFOX_STORAGE_STATE_{account_id.upper().replace('-', '_')}"
-        )
-        if storage_state_path:
-            context_kwargs["storage_state"] = str(Path(storage_state_path))
+        if cookies is None:
+            storage_state_path = storage_state_path or os.getenv(
+                f"CAMOFOX_STORAGE_STATE_{account_id.upper().replace('-', '_')}"
+            )
+            if storage_state_path:
+                context_kwargs["storage_state"] = str(Path(storage_state_path))
         context = await browser.new_context(**context_kwargs)
+        if cookies is not None:
+            from facebook_camofox_client.domain_camofox.cookie_hydration import (
+                hydrate_context,
+            )
+            await hydrate_context(context, cookies)
         return CamofoxSession(account_id, runtime, browser, context)
 
     async def release(self, session: CamofoxSession) -> None:
