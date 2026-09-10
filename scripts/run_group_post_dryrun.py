@@ -41,17 +41,23 @@ async def main() -> int:
 
     manager.acquire = acquire  # type: ignore[method-assign]
     action = GroupPostAction(manager, InMemoryEventEmitter(), ReceiptStore())
+    live = os.getenv("GROUP_POST_LIVE") == "1"
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
     env = ActionEnvelope(
         action_id=f"groupdry-{ts}", action_type=GroupPostAction.ACTION_TYPE,
         account_id="group-dryrun",
         input={"group_id": GROUP_ID,
-               "message": "Dry-run probe — please ignore (testing posting pipeline).",
-               "image_paths": [], "dry_run": True},
+               "message": os.getenv(
+                   "GROUP_POST_MESSAGE",
+                   "Hi all — for anyone clearing space: I do rubbish removal "
+                   "across Galway city and county (yards, sheds, households). "
+                   "€50 a load — send a photo of the pile for a same-day quote. "
+                   "DM me. Admin please delete if not allowed, thanks!"),
+               "image_paths": [], "dry_run": not live},
         idempotency_key=f"groupdry-{ts}",
     )
     out = await action.execute(env)
-    print(f"posted={out['posted']} (dry-run, nothing posted)")
+    print(f"posted={out['posted']} live={live}")
     return 0
 
 
