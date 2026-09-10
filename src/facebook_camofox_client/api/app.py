@@ -1,0 +1,127 @@
+"""REST service over the domain actions (FastAPI).
+
+CRM calls us (we serve). Cookies travel per request — no repository
+of sessions. Conventions borrowed from open-twenty-dialer: /api/*
+routes, /healthz, bearer key optional via FB_API_KEY env.
+
+Endpoints:
+  POST /api/listings            marketplace.create (dry_run default true)
+  GET  /api/listings/{id}/status marketplace.status
+  POST /api/watchlist           add a MonitoredListing (relist watcher input)
+  GET  /api/watchlist           list watched entries
+  GET  /healthz                  liveness
+"""
+from __future__ import annotations
+
+import os
+import uuid
+from datetime import datetime, timezone
+
+from fastapi import Depends, FastAPI, Header, HTTPException
+from pydantic import BaseModel, Field
+
+from facebook_camofox_client.domain_actions.envelope import ActionEnvelope
+from facebook_camofox_client.domain_camofox.session_manager import CamofoxSessionManager
+from facebook_camofox_client.domain_events.emitter import InMemoryEventEmitter
+from facebook_camofox_client.domain_marketplace.create import MarketplaceCreateAction
+from facebook_camofox_client.domain_marketplace.receipts import ReceiptStore
+from facebook_camofox_client.domain_marketplace.relist import MonitoredListing
+from facebook_camofox_client.domain_marketplace.schemas import (
+    MarketplaceCreateInput,
+    MarketplaceStatusInput,
+)
+from facebook_camofox_client.domain_marketplace.status import MarketplaceStatusAction
+
+app = FastAPI(title="facebook-camofox-client", version="0.1.0")
+_watchlist: dict[str, MonitoredListing] = {}
+
+
+def _manager(cookies: list[dict] | None) -> CamofoxSessionManager:
+    mgr = CamofoxSessionManager()
+    real_acquire = mgr.acquire
+
+    async def acquire(account_id, **kwargs):
+        if cookies is not None:
+            kwargs["cookies"] = cookies
+        else:
+            kwargs.setdefault(
+                "storage_state_path",
+                os.getenv("CAMOFOX_STORAGE_STATE_LISTEN_GROUP"),
+            )
+        return await real_acquire(account_id, **kwargs)
+
+    mgr.acquire = acquire  # type: ignore[method-assign]
+    return mgr
+
+
+async def _api_key(authorization: str | None = Header(default=None)) -> None:
+    required = os.getenv("FB_API_KEY")
+    if not required:
+        return
+    if authorization != f"Bearer {required}":
+        raise HTTPException(status_code=401, detail="missing or invalid bearer key")
+
+
+class CreateListingBody(BaseModel):
+    account_id: str = "default"
+    cookies: list[dict] | None = None
+    listing: MarketplaceCreateInput
+
+
+@app.post("/api/listings")
+async def create_listing(body: CreateListingBody, _: None = Depends(_api_key)):
+    action = MarketplaceCreateAction(
+        _manager(body.cookies), InMemoryEventEmitter(), ReceiptStore())
+    env = ActionEnvelope(
+        action_id=f"api-{uuid.uuid4().hex[:12]}",
+        action_type=MarketplaceCreateAction.ACTION_TYPE,
+        account_id=body.account_id,
+        input=body.listing.model_dump(),
+        idempotency_key=f"api-{uuid.uuid4().hex}",
+    )
+    out = await action.execute(env)
+    return {"action_id": env.action_id, **out.model_dump()}
+
+
+@app.get("/api/listings/{listing_id}/status")
+async def listing_status(
+    listing_id: str,
+    account_id: str = "default",
+    _: None = Depends(_api_key),
+):
+    action = MarketplaceStatusAction(_manager(None), InMemoryEventEmitter())
+    env = ActionEnvelope(
+        action_id=f"api-{uuid.uuid4().hex[:12]}",
+        action_type=MarketplaceStatusAction.ACTION_TYPE,
+        account_id=account_id,
+        input=MarketplaceStatusInput(listing_id=listing_id).model_dump(),
+        idempotency_key=f"api-{uuid.uuid4().hex}",
+    )
+    out = await action.execute(env)
+    return {"action_id": env.action_id, **out.model_dump()}
+
+
+class WatchEntry(BaseModel):
+    crm_offer_id: str
+    account_id: str
+    current_listing_id: str
+    root_listing_id: str
+    parent_listing_id: str | None = None
+    generation: int = 0
+
+
+@app.post("/api/watchlist", status_code=201)
+async def watch_add(entry: WatchEntry, _: None = Depends(_api_key)):
+    item = MonitoredListing(**entry.model_dump())
+    _watchlist[item.current_listing_id] = item
+    return item.model_dump()
+
+
+@app.get("/api/watchlist")
+async def watch_list(_: None = Depends(_api_key)):
+    return [m.model_dump() for m in _watchlist.values()]
+
+
+@app.get("/healthz")
+async def healthz():
+    return {"ok": True, "at": datetime.now(timezone.utc).isoformat()}
