@@ -63,7 +63,7 @@ async def run_cycle(watchlist_path: str, config: RelistPolicyConfig) -> int:
         session = await manager.acquire(listing.account_id)
         try:
             page = await session.new_page()
-            status, card = await check_dashboard_health(
+            status, card, clicks = await check_dashboard_health(
                 page, listing.current_listing_id, getattr(listing, "title", ""))
         finally:
             await manager.release(session)
@@ -77,22 +77,66 @@ async def run_cycle(watchlist_path: str, config: RelistPolicyConfig) -> int:
              "repost": decision.should_repost, "generation": listing.generation},
             dedupe_key=f"{listing.current_listing_id}-{listing.generation}",
         )
+        try:
+            from facebook_camofox_client.domain_marketplace.webhooks import (
+                alert_raised_event,
+                dispatch,
+                health_checked_event,
+                superseded_event,
+            )
+            await dispatch(health_checked_event(
+                listing_id=listing.current_listing_id, status=status.value,
+                clicks=clicks))
+        except Exception:
+            pass
         if decision.fatal_error:
             print(f"  FATAL: locking {listing.current_listing_id}, stopping watcher.")
+            try:
+                await dispatch(alert_raised_event(
+                    listing_id=listing.current_listing_id,
+                    root_listing_id=listing.root_listing_id,
+                    offer_id=listing.crm_offer_id,
+                    alert_type=status.value,
+                    message=f"Watcher halted: {decision.reason}",
+                    last_status=status.value))
+            except Exception:
+                pass
             out_items.append(listing.model_dump(mode="json"))
             fatal = True
             break
+        if not decision.should_repost and "max repost" in decision.reason:
+            try:
+                await dispatch(alert_raised_event(
+                    listing_id=listing.current_listing_id,
+                    root_listing_id=listing.root_listing_id,
+                    offer_id=listing.crm_offer_id,
+                    alert_type="RETRY_EXHAUSTED",
+                    message=f"Duplicate takedown hit max retries: {decision.reason}",
+                    last_status=status.value))
+            except Exception:
+                pass
         if decision.should_repost:
-            if not RELIST_LIVE:
-                print(f"  DRY: would repost as gen {decision.next_generation} "
+            if not RELIST_LIVE:                print(f"  DRY: would repost as gen {decision.next_generation} "
                       f"after {decision.cooldown_seconds}s (set RELIST_LIVE=1 to fire).")
             elif not is_due(listing):
                 print(f"  cooling down until {listing.next_eligible_at}.")
             else:
-                new_id = await _fire_replacement(manager, emitter, listing, decision)
+                new_id, new_title = await _fire_replacement(manager, emitter, listing, decision)
                 if new_id:
                     listing.superseded_by = new_id
                     listing.next_eligible_at = None
+                    try:
+                        await dispatch(superseded_event(
+                            old_listing_id=listing.current_listing_id,
+                            new_listing_id=new_id,
+                            offer_id=listing.crm_offer_id,
+                            reason=status.value,
+                            generation=decision.next_generation,
+                            root_listing_id=listing.root_listing_id,
+                            new_title=new_title,
+                        ))
+                    except Exception:
+                        pass
                     out_items.append(listing.model_dump(mode="json"))
                     out_items.append(MonitoredListing(
                         crm_offer_id=listing.crm_offer_id,
@@ -120,7 +164,7 @@ async def run_cycle(watchlist_path: str, config: RelistPolicyConfig) -> int:
     return 1 if fatal else 0
 
 
-async def _fire_replacement(manager, emitter, listing: MonitoredListing, decision) -> str | None:
+async def _fire_replacement(manager, emitter, listing: MonitoredListing, decision) -> tuple[str | None, str]:
     try:
         rep = build_replacement(
             listing.title_tpl or "Test listing {A|B}",
@@ -131,7 +175,8 @@ async def _fire_replacement(manager, emitter, listing: MonitoredListing, decisio
         )
     except ValueError as exc:
         print(f"  asset build failed ({exc}); cooling down.")
-        return None
+        return None, ""
+    listing.used_photos.append(rep["source_photo"])
     listing.used_photos.append(rep["source_photo"])
     action = MarketplaceCreateAction(manager, emitter, ReceiptStore())
     env = ActionEnvelope(
@@ -147,18 +192,24 @@ async def _fire_replacement(manager, emitter, listing: MonitoredListing, decisio
     if out.published and out.listing_id:
         print(f"  REPUBLISHED {listing.current_listing_id} -> {out.listing_id} "
               f"(pixels_mutated={rep['pixels_mutated']})")
-        return out.listing_id
+        return out.listing_id, rep["title"]
     print("  publish returned no listing id.")
-    return None
+    return None, ""
 
 
 def main() -> None:
     if len(sys.argv) < 2:
         print("usage: python scripts\\relist_watcher.py <watchlist.json>")
         sys.exit(2)
-    jitter = random.randint(60, 300)
-    print(f"jitter {jitter}s (skipped in single-cycle mode)")
-    sys.exit(asyncio.run(run_cycle(sys.argv[1], RelistPolicyConfig())))
+    from facebook_camofox_client.domain_runtime.locking import SingleFlight
+
+    with SingleFlight("camofox_marketplace") as free:
+        if not free:
+            print("another browser task holds the lock; skipping tick.")
+            sys.exit(0)
+        jitter = random.randint(60, 300)
+        print(f"jitter {jitter}s (skipped in single-cycle mode)")
+        sys.exit(asyncio.run(run_cycle(sys.argv[1], RelistPolicyConfig())))
 
 
 if __name__ == "__main__":

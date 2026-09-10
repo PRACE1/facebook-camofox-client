@@ -60,6 +60,15 @@ class MarketplaceStatusAction:
                  "status": status},
                 dedupe_key=f"{envelope.action_id}-{data.listing_id}",
             )
+            try:
+                from facebook_camofox_client.domain_marketplace.webhooks import (
+                    dispatch,
+                    health_checked_event,
+                )
+                await dispatch(health_checked_event(
+                    listing_id=data.listing_id, status=status))
+            except Exception:
+                pass
             return MarketplaceStatusOutput(
                 listing_id=data.listing_id, listing_url=final_url,
                 status=status, title=(title or None),

@@ -146,6 +146,27 @@ class MarketplaceCreateAction:
                  "published": True},
                 dedupe_key=f"{envelope.action_id}-completed",
             )
+            try:
+                from facebook_camofox_client.domain_marketplace.webhooks import (
+                    created_event,
+                    dispatch,
+                )
+                try:
+                    price_num: float | int | str = int(str(data.price).lstrip("Pp€£$ "))
+                except ValueError:
+                    try:
+                        price_num = float(str(data.price))
+                    except ValueError:
+                        price_num = data.price
+                await dispatch(created_event(
+                    listing_id=listing_id or "", offer_id=data.offer_id,
+                    status="UNDER_REVIEW", generation=0,
+                    root_listing_id=listing_id or "",
+                    parent_listing_id=None, title=data.title,
+                    location_query=data.location, price=price_num,
+                    screenshot_url=output.receipt_path))
+            except Exception:
+                pass
             return output
         except Exception as exc:
             await self.event_emitter.emit(

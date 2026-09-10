@@ -13,6 +13,7 @@ class MarketplaceCreateInput(BaseModel):
     condition: str | None = None
     image_paths: list[str] = Field(default_factory=list)
     dry_run: bool = True
+    offer_id: str = ""
 
 
 class MarketplaceCreateOutput(BaseModel):
@@ -26,6 +27,7 @@ class MarketplaceCreateOutput(BaseModel):
 
 class MarketplaceStatusInput(BaseModel):
     listing_id: str
+    offer_id: str = ""
 
 
 class MarketplaceStatusOutput(BaseModel):

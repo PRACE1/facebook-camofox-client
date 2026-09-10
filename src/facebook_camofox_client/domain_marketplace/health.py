@@ -10,6 +10,12 @@ import re
 from facebook_camofox_client.domain_marketplace.relist import ListingHealthStatus
 
 
+def parse_clicks(card_text: str) -> int:
+    """Dashboard cards show 'N clicks on listing' — extract N, else 0."""
+    m = re.search(r"(\d+)\s+clicks?\s+on\s+listing", card_text or "", re.I)
+    return int(m.group(1)) if m else 0
+
+
 def classify_dashboard_card(card_text: str, still_listed: bool = True) -> ListingHealthStatus:
     low = (card_text or "").lower()
     if "unable to buy or sell" in low or "commerce ban" in low or "account restricted" in low:
@@ -50,11 +56,11 @@ _CARD_JS = """(title) => {
 }"""
 
 
-async def check_dashboard_health(page, listing_id: str, title: str = "") -> tuple[ListingHealthStatus, str]:
+async def check_dashboard_health(page, listing_id: str, title: str = "") -> tuple[ListingHealthStatus, str, int]:
     """Open you/selling, find the card by exact title text (cards are NOT
     anchors — zero /item/ hrefs on the dashboard), classify its badges.
-    Returns (status, card_text). Missing card on a healthy dashboard with
-    other cards -> DELETED_BY_FB; else UNKNOWN (never fabricate)."""
+    Returns (status, card_text, clicks). Missing card on a healthy
+    dashboard with other cards -> DELETED_BY_FB; else UNKNOWN."""
     await page.goto("https://www.facebook.com/marketplace/you/selling",
                     wait_until="domcontentloaded")
     await page.wait_for_timeout(4000)
@@ -75,17 +81,17 @@ async def check_dashboard_health(page, listing_id: str, title: str = "") -> tupl
             try:
                 card = await page.evaluate(_CARD_JS, title)
                 if card:
-                    return classify_dashboard_card(card, still_listed=True), card
+                    return classify_dashboard_card(card, still_listed=True), card, parse_clicks(card)
             except Exception:
                 pass
     try:
         body = await page.locator("body").inner_text(timeout=5000)
     except Exception:
-        return ListingHealthStatus.UNKNOWN, ""
+        return ListingHealthStatus.UNKNOWN, "", 0
     low_body = (body or "").lower()
     # other cards rendered but ours is absent -> genuinely gone
     if ("your listings" in low_body
             and ("clicks on listing" in low_body or "mark as sold" in low_body)
             and (not title or title.lower() not in low_body)):
-        return ListingHealthStatus.DELETED_BY_FB, ""
-    return ListingHealthStatus.UNKNOWN, ""
+        return ListingHealthStatus.DELETED_BY_FB, "", 0
+    return ListingHealthStatus.UNKNOWN, "", 0

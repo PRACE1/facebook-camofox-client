@@ -1,0 +1,17 @@
+[Unit]
+Description=facebook-camofox relist watcher (4h cadence via OnCalendar; single-flight)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/facebook-camofox-client
+Environment=CAMOFOX_STORAGE_STATE_LISTEN_GROUP=/opt/facebook-camofox-client/.cookies.json
+Environment=RELIST_LIVE=1
+Environment=MARKETPLACE_WEBHOOK_URL=https://twenty.example.com/api/webhooks/marketplace-events
+ExecStart=/opt/facebook-camofox-client/.venv/bin/python scripts/relist_watcher.py state/watchlist.json
+LockPersonality=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target
