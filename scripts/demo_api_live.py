@@ -31,6 +31,8 @@ def main() -> int:
 
     env = dict(os.environ)
     env["PYTHONPATH"] = "src" + os.pathsep + env.get("PYTHONPATH", "")
+    env.setdefault("CAMOFOX_STORAGE_STATE_LISTEN_GROUP",
+                   os.path.join(os.path.expanduser("~"), "fb_cookies_playwright.json"))
     raw_path = os.path.join(os.path.expanduser("~"), "fb_cookies.json")
     try:
         import time as _time

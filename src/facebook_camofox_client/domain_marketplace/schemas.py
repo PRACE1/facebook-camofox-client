@@ -19,6 +19,7 @@ class MarketplaceCreateInput(BaseModel):
 class MarketplaceCreateOutput(BaseModel):
     published: bool = False
     success: bool = False
+    reason: str | None = None
     listing_id: str | None = None
     listing_url: str | None = None
     published_at: str | None = None

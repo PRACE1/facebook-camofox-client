@@ -45,7 +45,7 @@ class MarketplaceCreateAction:
                  "category": data.category},
                 dedupe_key=f"{envelope.action_id}-failed",
             )
-            return MarketplaceCreateOutput(published=False)
+            return MarketplaceCreateOutput(published=False, reason="unknown_category")
         session = await self.session_manager.acquire(envelope.account_id)
         try:
             page = await session.new_page()
@@ -60,16 +60,26 @@ class MarketplaceCreateAction:
                     {"action_id": envelope.action_id, "reason": "auth_required"},
                     dedupe_key=f"{envelope.action_id}-failed",
                 )
-                return MarketplaceCreateOutput(published=False)
+                return MarketplaceCreateOutput(published=False, reason="auth_required")
 
-            if not await driver.select_combobox(page, "Category", category):
+            opened = False
+            for _attempt in range(3):
+                if await driver.select_combobox(page, "Category", category):
+                    opened = True
+                    break
+                try:
+                    await page.keyboard.press("Escape")
+                    await page.wait_for_timeout(1500)
+                except Exception:
+                    pass
+            if not opened:
                 await self._save_debug(page, f"category_miss_{envelope.action_id}")
                 await self.event_emitter.emit(
                     "marketplace.create_failed",
                     {"action_id": envelope.action_id, "reason": "category_not_opened"},
                     dedupe_key=f"{envelope.action_id}-failed",
                 )
-                return MarketplaceCreateOutput(published=False)
+                return MarketplaceCreateOutput(published=False, reason="category_not_opened")
 
             file_input = page.locator('input[type="file"][accept*="image"]').first
             existing = [p for p in data.image_paths if Path(p).exists()]
@@ -84,7 +94,7 @@ class MarketplaceCreateAction:
                     {"action_id": envelope.action_id, "reason": "images_not_found"},
                     dedupe_key=f"{envelope.action_id}-failed",
                 )
-                return MarketplaceCreateOutput(published=False)
+                return MarketplaceCreateOutput(published=False, reason="images_not_found")
 
             texts = page.locator('input[type="text"]:not([role="combobox"])')
             await texts.first.wait_for(state="visible", timeout=10000)
