@@ -18,7 +18,7 @@ import uuid
 from datetime import UTC, datetime
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from facebook_camofox_client.domain_actions.envelope import ActionEnvelope
 from facebook_camofox_client.domain_camofox.session_manager import CamofoxSessionManager
@@ -50,7 +50,7 @@ def _manager(cookies: list[dict] | None) -> CamofoxSessionManager:
             )
         return await real_acquire(account_id, **kwargs)
 
-    mgr.acquire = acquire  # type: ignore[method-assign]
+    mgr.acquire = acquire  # type: ignore[assignment]
     return mgr
 
 
@@ -125,3 +125,36 @@ async def watch_list(_: None = Depends(_api_key)):
 @app.get("/healthz")
 async def healthz():
     return {"ok": True, "at": datetime.now(UTC).isoformat()}
+
+
+class ActionBody(BaseModel):
+    account_id: str = "default"
+    cookies: list[dict] | None = None
+    idempotency_key: str | None = None
+    input: dict = Field(default_factory=dict)
+
+
+@app.get("/api/actions")
+async def action_index(_: None = Depends(_api_key)):
+    from facebook_camofox_client.api.actions import action_types
+
+    return {"action_types": action_types()}
+
+
+@app.post("/api/actions/{action_type}")
+async def run_action(action_type: str, body: ActionBody, _: None = Depends(_api_key)):
+    from facebook_camofox_client.api.actions import dispatch
+
+    env = ActionEnvelope(
+        action_id=f"api-{uuid.uuid4().hex[:12]}",
+        action_type=action_type,
+        account_id=body.account_id,
+        input=body.input,
+        idempotency_key=body.idempotency_key or f"api-{uuid.uuid4().hex}",
+    )
+    try:
+        result = await dispatch(
+            action_type, _manager(body.cookies), InMemoryEventEmitter(), env)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"unknown action_type: {action_type}")
+    return {"action_id": env.action_id, "action_type": action_type, "result": result}

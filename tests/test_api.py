@@ -48,3 +48,34 @@ def test_watchlist_roundtrip():
                                        "current_listing_id": "123", "root_listing_id": "123"})
     assert r.status_code == 201
     assert len(c.get("/api/watchlist").json()) == 1
+
+
+def test_action_index_lists_all():
+    kinds = _client().get("/api/actions").json()["action_types"]
+    for expected in ("posts.listen", "groups.search", "groups.post",
+                     "marketplace.create", "marketplace.status"):
+        assert expected in kinds
+
+
+def test_unknown_action_404():
+    r = _client().post("/api/actions/nope.notreal",
+                       json={"account_id": "a", "input": {}})
+    assert r.status_code == 404
+
+
+def test_generic_posts_listen(monkeypatch):
+    from facebook_camofox_client.domain_posts import listen as listen_mod
+
+    real_action = listen_mod.PostsListenAction
+
+    async def fake_execute(self, envelope):
+        return {"new_posts": [], "cursor_advanced": False}
+
+    monkeypatch.setattr(real_action, "execute", fake_execute)
+    r = _client().post("/api/actions/posts.listen",
+                       json={"account_id": "a",
+                             "input": {"group_id": "305056891435827"}})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["action_type"] == "posts.listen"
+    assert body["result"]["new_posts"] == []
