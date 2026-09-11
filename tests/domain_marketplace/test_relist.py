@@ -88,11 +88,28 @@ def test_build_replacement_picks_pool(tmp_path):
 
 
 def test_is_due_gates_cooldown():
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     assert is_due(base_listing()) is True
     future = base_listing()
-    future.next_eligible_at = datetime.now(UTC) + timedelta(hours=2)
+    future.next_eligible_at = datetime.now(timezone.utc) + timedelta(hours=2)
     assert is_due(future) is False
     past = base_listing()
-    past.next_eligible_at = datetime.now(UTC) - timedelta(minutes=1)
+    past.next_eligible_at = datetime.now(timezone.utc) - timedelta(minutes=1)
     assert is_due(past) is True
+
+
+def test_receipt_ttl_purges_only_expired(tmp_path):
+    import os
+    import time
+
+    from facebook_camofox_client.domain_marketplace.receipts import ReceiptStore
+
+    old = tmp_path / "old.png"
+    new = tmp_path / "new.png"
+    old.write_bytes(b"x")
+    new.write_bytes(b"y")
+    ancient = time.time() - 10 * 86400
+    os.utime(old, (ancient, ancient))
+    store = ReceiptStore(tmp_path, ttl_days=7)
+    assert not old.exists() and new.exists()
+    assert store.purge_expired() == 0

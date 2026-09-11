@@ -28,7 +28,26 @@ POLICY_VIOLATION, UNKNOWN), `generation`, `rootListingId`,
 `agencyLeadId -> agencyLead` via `{fieldName}Id` pattern (per dialer README
 conventions: base URL ends in `/rest`, bearer auth).
 
+## data-hygiene boundaries (non-target content, enforced in code)
+
+- Twenty: `validate_outbound` blocks anything without a real `offerId`
+  and a 10–20 digit Facebook id (mock/test/probe prefixes rejected)
+  before any network request.
+- Repo: `artifacts/`, `state/`, root dumps gitignored; fixtures stay
+  synthetic/stock only, never client photos or scraped media.
+- Local: receipts are screenshots + JSON only (HTML dumps cut);
+  `ReceiptStore` enforces a 7-day rolling TTL automatically.
+
 ## daemon
+
+- `scripts/relist_watcher.py`: one cycle per run; 12min first check,
+  4h routine + 60–300s jitter; cooldowns 1h (retry 1) / 3h (retry 2).
+- Single-flight via `domain_runtime/locking.py` (msvcrt/fcntl, fd-bound —
+  no stale locks). Latecomer skips with exit 0.
+- Linux: `deploy/facebook-relist-watcher.{service,timer}` (oneshot +
+  4h `OnCalendar`, `RandomizedDelaySec=1800`). Windows: task snippet in
+  `deploy/windows-task-scheduler.ps1.txt`.
+- `RELIST_LIVE=1` publishes; unset = dry (prints what it would do).
 
 - `scripts/relist_watcher.py`: one cycle per run; 12min first check,
   4h routine + 60–300s jitter; cooldowns 1h (retry 1) / 3h (retry 2).

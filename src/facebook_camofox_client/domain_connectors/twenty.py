@@ -16,6 +16,28 @@ import httpx
 TIMEOUT_SECONDS = 15
 OBJECT = "agencyListings"
 
+# Non-target content (per data-hygiene boundary): synthetic probe ids,
+# mock prefixes, and records unlinked to a real offer never leave this box.
+_MOCK_PREFIXES = ("test", "mock", "probe", "demo", "fake", "sample")
+
+
+def validate_outbound(fields: dict) -> None:
+    """Boundary guard: only verified live listings linked to a real offer
+    may be persisted to Twenty. Raises ValueError otherwise — before any
+    network request is made."""
+    import re
+
+    listing_id = str(fields.get("listingId") or "")
+    if not re.fullmatch(r"\d{10,20}", listing_id):
+        raise ValueError(f"refusing non-Facebook listingId: {listing_id!r}")
+    offer_id = str(fields.get("offerId") or fields.get("offer_id") or "")
+    if not offer_id:
+        raise ValueError("refusing unlinked record: offerId required")
+    if offer_id.lower().startswith(_MOCK_PREFIXES):
+        raise ValueError(f"refusing mock offerId: {offer_id!r}")
+    if listing_id.lower().startswith(_MOCK_PREFIXES):
+        raise ValueError(f"refusing mock listingId: {listing_id!r}")
+
 
 def _base_url() -> str:
     return (os.getenv("TWENTY_BASE_URL") or "").rstrip("/")
@@ -82,9 +104,8 @@ class TwentyClient:
 
     async def upsert_listing(self, fields: dict) -> tuple[dict, bool]:
         """Insert or update by listingId. Returns (row, created?)."""
+        validate_outbound(fields)
         listing_id = fields.get("listingId")
-        if not listing_id:
-            raise ValueError("fields must include listingId")
         existing = await self.find_by_listing_id(str(listing_id))
         if existing and existing.get("id"):
             return await self.update_row(existing["id"], fields), False

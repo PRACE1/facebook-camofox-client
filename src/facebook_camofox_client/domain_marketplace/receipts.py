@@ -24,19 +24,37 @@ class MarketplaceReceipt(BaseModel):
 
 
 class ReceiptStore:
-    def __init__(self, base_dir: str | Path = "artifacts/receipts") -> None:
+    def __init__(self, base_dir: str | Path = "artifacts/receipts",
+                 ttl_days: int = 7) -> None:
         self.base_dir = Path(base_dir)
+        self.ttl_days = ttl_days
         self.base_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.purge_expired()  # automatic rolling TTL on every entry
+        except Exception:
+            pass
+
+    def purge_expired(self) -> int:
+        """Rolling TTL: delete receipt files older than ttl_days.
+        Returns count removed. Screenshots are evidence; hundred-megabyte
+        HTML dumps of third-party pages are not — HTML is never written."""
+        import time
+
+        cutoff = time.time() - self.ttl_days * 86400
+        removed = 0
+        for path in self.base_dir.iterdir():
+            try:
+                if path.is_file() and path.stat().st_mtime < cutoff:
+                    path.unlink()
+                    removed += 1
+            except OSError:
+                continue
+        return removed
 
     async def save_debug(self, page, name: str) -> MarketplaceReceipt | None:
         try:
             png = self.base_dir / f"{name}.png"
             await page.screenshot(path=str(png), full_page=True)
-            try:  # debug-only sidecar, never in the receipt payload
-                (self.base_dir / f"{name}.html").write_text(
-                    await page.content(), encoding="utf-8")
-            except Exception:
-                pass
             return MarketplaceReceipt(
                 success=False, action_id=name, account_id="",
                 screenshot_path=str(png))

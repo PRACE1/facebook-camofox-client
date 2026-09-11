@@ -40,14 +40,14 @@ async def test_upsert_creates_when_missing(monkeypatch):
 
     def handler(method, url, params, body):
         if method == "GET":
-            assert "listingId[eq]:9" in (params or {}).get("filter", "")
+            assert "listingId[eq]:1583545526797714" in (params or {}).get("filter", "")
             return FakeResp({"data": {"agencyListings": []}})
         seen.update(body or {})
         return FakeResp({"data": {"agencyListings": [{"id": "row-1", **(body or {})}]}})
 
     monkeypatch.setattr(twenty_mod.httpx, "AsyncClient", _client(handler))
     row, created = await TwentyClient("https://x/rest", "k").upsert_listing(
-        {"listingId": "9", "status": "ACTIVE"})
+        {"listingId": "1583545526797714", "offerId": "offer-1", "status": "ACTIVE"})
     assert created is True and row["id"] == "row-1" and seen["status"] == "ACTIVE"
 
 
@@ -63,14 +63,28 @@ async def test_upsert_updates_when_present(monkeypatch):
 
     monkeypatch.setattr(twenty_mod.httpx, "AsyncClient", _client(handler))
     row, created = await TwentyClient("https://x/rest", "k").upsert_listing(
-        {"listingId": "9", "status": "SOLD"})
+        {"listingId": "1583545526797714", "offerId": "offer-1", "status": "SOLD"})
     assert created is False and patched["url"].endswith("/agencyListings/row-7")
 
 
 @pytest.mark.asyncio
 async def test_upsert_requires_listing_id():
     with pytest.raises(ValueError):
-        await TwentyClient("https://x/rest", "k").upsert_listing({"status": "ACTIVE"})
+        await TwentyClient("https://x/rest", "k").upsert_listing(
+            {"status": "ACTIVE", "offerId": "offer-1"})
+
+
+@pytest.mark.asyncio
+async def test_boundary_blocks_non_target():
+    from facebook_camofox_client.domain_connectors.twenty import validate_outbound
+
+    with pytest.raises(ValueError):  # short/probe id
+        validate_outbound({"listingId": "9", "offerId": "offer-1"})
+    with pytest.raises(ValueError):  # unlinked record
+        validate_outbound({"listingId": "1583545526797714"})
+    with pytest.raises(ValueError):  # mock offer
+        validate_outbound({"listingId": "1583545526797714", "offerId": "test-123"})
+    validate_outbound({"listingId": "1583545526797714", "offerId": "offer-1"})
 
 
 @pytest.mark.asyncio
@@ -82,7 +96,7 @@ async def test_create_handles_singular_post_shape(monkeypatch):
 
     monkeypatch.setattr(twenty_mod.httpx, "AsyncClient", _client(handler))
     row, created = await TwentyClient("https://x/rest", "k").upsert_listing(
-        {"listingId": "9"})
+        {"listingId": "1583545526797714", "offerId": "offer-1"})
     assert created is True and row["id"] == "row-9"
 
 
@@ -95,5 +109,5 @@ async def test_update_returns_flat_row(monkeypatch):
 
     monkeypatch.setattr(twenty_mod.httpx, "AsyncClient", _client(handler))
     row, created = await TwentyClient("https://x/rest", "k").upsert_listing(
-        {"listingId": "9", "status": "SOLD"})
+        {"listingId": "1583545526797714", "offerId": "offer-1", "status": "SOLD"})
     assert created is False and row == {"id": "row-7", "status": "SOLD"}
