@@ -89,6 +89,9 @@ class CamofoxSession:
 
 
 class CamofoxSessionManager:
+    def __init__(self, account_store=None) -> None:
+        self.account_store = account_store
+
     async def acquire(
         self,
         account_id: str,
@@ -96,8 +99,9 @@ class CamofoxSessionManager:
         storage_state_path: str | None = None,
         cookies: list[dict] | None = None,
     ) -> CamofoxSession:
-        """cookies: raw CRM Chrome-export list, injected in-process via
-        cookie_hydration (takes precedence over storage_state file)."""
+        """Cookie precedence: explicit list > Social Accounts store (by
+        account_id) > storage_state file/env. In-process CRM hydration
+        takes precedence over files; see cookie_hydration."""
         from camoufox.async_api import AsyncCamoufox
 
         runtime = AsyncCamoufox(
@@ -107,6 +111,14 @@ class CamofoxSessionManager:
         )
         browser = await runtime.__aenter__()
         context_kwargs: dict[str, Any] = {}
+        stored = None
+        if cookies is None and self.account_store is not None:
+            try:
+                stored = self.account_store.load_cookies(account_id)
+            except Exception:
+                stored = None
+        if cookies is None:
+            cookies = stored
         if cookies is None:
             storage_state_path = storage_state_path or os.getenv(
                 f"CAMOFOX_STORAGE_STATE_{account_id.upper().replace('-', '_')}"

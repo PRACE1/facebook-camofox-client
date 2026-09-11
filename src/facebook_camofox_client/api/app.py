@@ -127,6 +127,41 @@ async def healthz():
     return {"ok": True, "at": datetime.now(UTC).isoformat()}
 
 
+def _account_store():
+    from facebook_camofox_client.domain_accounts.store import SocialAccountStore
+
+    return SocialAccountStore(os.getenv("SOCIAL_ACCOUNTS_DB", "state/social_accounts.db"))
+
+
+class AccountBody(BaseModel):
+    account_id: str
+    label: str = ""
+    platform: str = "facebook"
+    cookies: list[dict] = Field(default_factory=list)
+
+
+@app.post("/api/accounts", status_code=201)
+async def account_save(body: AccountBody, _: None = Depends(_api_key)):
+    try:
+        _account_store().save(body.account_id, body.cookies,
+                              label=body.label, platform=body.platform)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return {"account_id": body.account_id, "saved": True}
+
+
+@app.get("/api/accounts")
+async def account_list(_: None = Depends(_api_key)):
+    return _account_store().metadata()
+
+
+@app.delete("/api/accounts/{account_id}")
+async def account_delete(account_id: str, _: None = Depends(_api_key)):
+    if not _account_store().delete(account_id):
+        raise HTTPException(status_code=404, detail="unknown account_id")
+    return {"account_id": account_id, "deleted": True}
+
+
 class ActionBody(BaseModel):
     account_id: str = "default"
     cookies: list[dict] | None = None
