@@ -31,6 +31,12 @@ def _extract_rows(payload: dict) -> list[dict]:
     if isinstance(data, list):
         return data
     rows = data.get(OBJECT, [])
+    if isinstance(rows, dict):  # POST often returns singular {"agencyListing": {...}}
+        rows = [rows]
+    if not rows:
+        single = data.get("agencyListing")
+        if isinstance(single, dict):
+            return [single]
     return rows if isinstance(rows, list) else []
 
 
@@ -67,7 +73,8 @@ class TwentyClient:
                 f"{self.base_url}/{OBJECT}/{row_id}", json=fields,
                 headers=self._headers())
             resp.raise_for_status()
-            return resp.json()
+            rows = _extract_rows(resp.json())
+            return rows[0] if rows else {}
 
     async def upsert_listing(self, fields: dict) -> tuple[dict, bool]:
         """Insert or update by listingId. Returns (row, created?)."""

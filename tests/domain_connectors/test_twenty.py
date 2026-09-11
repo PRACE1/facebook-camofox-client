@@ -71,3 +71,29 @@ async def test_upsert_updates_when_present(monkeypatch):
 async def test_upsert_requires_listing_id():
     with pytest.raises(ValueError):
         await TwentyClient("https://x/rest", "k").upsert_listing({"status": "ACTIVE"})
+
+
+@pytest.mark.asyncio
+async def test_create_handles_singular_post_shape(monkeypatch):
+    def handler(method, url, params, body):
+        if method == "GET":
+            return FakeResp({"data": {"agencyListings": []}})
+        return FakeResp({"data": {"agencyListing": {"id": "row-9"}}})
+
+    monkeypatch.setattr(twenty_mod.httpx, "AsyncClient", _client(handler))
+    row, created = await TwentyClient("https://x/rest", "k").upsert_listing(
+        {"listingId": "9"})
+    assert created is True and row["id"] == "row-9"
+
+
+@pytest.mark.asyncio
+async def test_update_returns_flat_row(monkeypatch):
+    def handler(method, url, params, body):
+        if method == "GET":
+            return FakeResp({"data": {"agencyListings": [{"id": "row-7"}]}})
+        return FakeResp({"data": {"agencyListings": [{"id": "row-7", "status": "SOLD"}]}})
+
+    monkeypatch.setattr(twenty_mod.httpx, "AsyncClient", _client(handler))
+    row, created = await TwentyClient("https://x/rest", "k").upsert_listing(
+        {"listingId": "9", "status": "SOLD"})
+    assert created is False and row == {"id": "row-7", "status": "SOLD"}
