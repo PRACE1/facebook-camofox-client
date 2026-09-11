@@ -1,8 +1,13 @@
-"""Create the agencyListings object + fields in Twenty via metadata GraphQL.
+﻿"""Create the agencyListings object + fields in Twenty via metadata GraphQL.
 
 Dry-printable without credentials (shows exact mutations); live with
-TWENTY_BASE_URL + TWENTY_API_KEY set. Follows the dialer README's
-metadata patterns (relation joinColumnName {fieldName}Id).
+TWENTY_BASE_URL + TWENTY_API_KEY set. Idempotent: existing object/fields
+are detected and skipped, so re-running is safe.
+
+Proven live against twenty.inferencesaver.com: metadata endpoint is
+POST <base>/metadata (NOT /graphql); object mutation
+CreateOneObjectMetadataItem; fields via createOneField(input: {field:
+CreateFieldInput}) with objectMetadataId.
 
 Usage:
   python scripts\\twenty_setup.py --print      # show mutations only
@@ -12,6 +17,11 @@ import asyncio
 import json
 import os
 import sys
+
+OBJECT_IDENTITY = {
+    "nameSingular": "agencyListing",
+    "namePlural": "agencyListings",
+}
 
 FIELDS: list[dict] = [
     {"name": "listingId", "label": "Listing ID", "type": "TEXT"},
@@ -33,15 +43,27 @@ FIELDS: list[dict] = [
     {"name": "lastError", "label": "Last error", "type": "TEXT"},
 ]
 
-CREATE_OBJECT = """mutation {
-  createOneObject(input: {object: {
-    nameSingular: "agencyListing" namePlural: "agencyListings"
-    labelSingular: "Listing" labelPlural: "Listings"
-    description: "Facebook Marketplace listings synced from facebook-camofox-client"
-    icon: "IconTag"
-  }}) { id nameSingular }
+CREATE_OBJECT = """mutation CreateOneObjectMetadataItem($input: CreateOneObjectInput!) {
+  createOneObject(input: $input) { id nameSingular namePlural }
 }"""
+CREATE_FIELD = """mutation CreateField($input: CreateOneFieldMetadataInput!) {
+  createOneField(input: $input) { id name }
+}"""
+LIST_OBJECTS = """{
+  objects(paging: {first: 200}) { edges { node { id nameSingular namePlural } } } }"""
 
+
+async def find_object(client, headers: dict, base: str, plural: str) -> dict | None:
+    r = await client.post(f"{base}/metadata", json={"query": LIST_OBJECTS},
+                          headers=headers)
+    edges = (r.json().get("data") or {}).get("objects", {}).get("edges", [])
+    for e in edges:
+        if e["node"].get("namePlural") == plural:
+            return e["node"]
+    return None
+LIST_FIELDS = """query($objectId: UUID!) {
+  object(id: $objectId) { fields { id name } }
+}"""
 
 def build_plan() -> dict:
     return {"createObject": CREATE_OBJECT, "fields": FIELDS}
@@ -50,19 +72,62 @@ def build_plan() -> dict:
 async def apply_plan() -> int:
     import httpx
 
-    base = (os.getenv("TWENTY_BASE_URL") or "").rstrip("/")
+    base = (os.getenv("TWENTY_BASE_URL") or "").rstrip("/").replace("/rest", "")
     key = os.getenv("TWENTY_API_KEY") or ""
     if not base or not key:
         print("TWENTY_BASE_URL + TWENTY_API_KEY required for --apply")
         return 2
-    plan = build_plan()
+    headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
     async with httpx.AsyncClient(timeout=30) as client:
-        headers = {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
-        r = await client.post(f"{base}/graphql", json={"query": plan["createObject"]},
-                              headers=headers)
-        print(f"createObject -> HTTP {r.status_code}")
-        print(json.dumps(plan["fields"], indent=1)[:500], "...")
-        print("NOTE: create fields via Twenty UI or metadata createOneField per entry above.")
+        # 1. find or create the object (paginated: new objects sit past page 1)
+        found = await find_object(client, headers, base, OBJECT_IDENTITY["namePlural"])
+        if found:
+            obj_id = found["id"]
+            print(f"object exists: {obj_id}")
+        else:
+            r = await client.post(
+                f"{base}/metadata",
+                json={"query": CREATE_OBJECT,
+                      "variables": {"input": {"object": {
+                          **OBJECT_IDENTITY,
+                          "labelSingular": "Agency Listing",
+                          "labelPlural": "Agency Listings",
+                          "description": ("Facebook Marketplace listings synced "
+                                        "from facebook-camofox-client"),
+                      }}}},
+                headers=headers)
+            obj = r.json()["data"]["createOneObject"]
+            obj_id = obj["id"]
+            print(f"object created: {obj_id}")
+        # 2. create missing fields only
+        r = await client.post(
+            f"{base}/metadata",
+            json={"query": LIST_FIELDS, "variables": {"objectId": obj_id}},
+            headers=headers)
+        have = {f["name"] for f in (r.json().get("data") or {}).get("object", {}).get("fields", [])}
+        for spec in FIELDS:
+            if spec["name"] in have:
+                print(f"field {spec['name']} exists - skipping")
+                continue
+            field = {"objectMetadataId": obj_id, "name": spec["name"],
+                     "label": spec["label"], "type": spec["type"],
+                     "description": "facebook-camofox-client sync"}
+            if spec.get("options"):
+                field["options"] = [
+                    {"label": o.title(), "value": o, "color": "blue", "position": i}
+                    for i, o in enumerate(spec["options"])]
+            r = await client.post(
+                f"{base}/metadata",
+                json={"query": CREATE_FIELD,
+                      "variables": {"input": {"field": field}}},
+                headers=headers)
+            body = r.text
+            if '"errors"' not in body:
+                print("OK  ", spec["name"])
+            elif "already used" in body or "NOT_AVAILABLE" in body:
+                print(f"exists - skipping  {spec['name']}")
+            else:
+                print("FAIL", spec["name"], r.status_code, body[:200].replace("\n", " "))
     return 0
 
 

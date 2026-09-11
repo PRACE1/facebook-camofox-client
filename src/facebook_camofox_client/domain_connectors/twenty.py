@@ -30,14 +30,18 @@ def _extract_rows(payload: dict) -> list[dict]:
     data = (payload or {}).get("data") or {}
     if isinstance(data, list):
         return data
-    rows = data.get(OBJECT, [])
-    if isinstance(rows, dict):  # POST often returns singular {"agencyListing": {...}}
-        rows = [rows]
-    if not rows:
-        single = data.get("agencyListing")
-        if isinstance(single, dict):
-            return [single]
-    return rows if isinstance(rows, list) else []
+    for key in (OBJECT, "agencyListing"):
+        rows = data.get(key, [])
+        if isinstance(rows, dict):  # POST/PATCH nest single verbs (create/updateX)
+            rows = [rows]
+        if rows:
+            return rows if isinstance(rows, list) else []
+    for value in data.values():  # e.g. updateAgencyListing / createAgencyListing
+        if isinstance(value, dict):
+            return [value]
+        if isinstance(value, list) and value and isinstance(value[0], dict):
+            return value
+    return []
 
 
 class TwentyClient:
