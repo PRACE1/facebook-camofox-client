@@ -82,10 +82,24 @@ def is_logged_in(url: str, title: str) -> bool:
 
 
 async def assert_logged_in(page) -> None:
+    """Positive proof required: a logged-in marker must exist. URL-only
+    checks false-pass (anon facebook.com keeps a clean URL with _rdc dance
+    and a bare 'Facebook' title)."""
     url = page.url
-    try:
-        title = await page.title()
-    except Exception:
-        title = ""
-    if not is_logged_in(url, title or ""):
+    if "login" in (url or "").lower():
         raise AuthExpiredError(f"redirected to login ({url!r}) — CRM must refresh cookies")
+    markers = 0
+    for sel in ('a[href*="/marketplace/"]', '[aria-label="Your profile"]',
+                'div[role="textbox"]'):
+        try:
+            if await page.locator(sel).count() > 0:
+                markers += 1
+        except Exception:
+            continue
+    if markers == 0:
+        try:
+            title = await page.title()
+        except Exception:
+            title = ""
+        raise AuthExpiredError(
+            f"no logged-in markers at {url!r} (title {title!r}) — cookies stale")
