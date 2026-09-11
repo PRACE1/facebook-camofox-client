@@ -26,8 +26,9 @@ OBJECT_IDENTITY = {
 FIELDS: list[dict] = [
     {"name": "listingId", "label": "Listing ID", "type": "TEXT"},
     {"name": "status", "label": "Status", "type": "SELECT",
-     "options": ["ACTIVE", "UNDER_REVIEW", "DUPLICATE", "DELETED_BY_FB",
-                 "SUPERSEDED", "RETRY_EXHAUSTED", "POLICY_VIOLATION", "UNKNOWN"]},
+     "options": ["ACTIVE", "UNDER_REVIEW", "DUPLICATE_TAKEDOWN", "DELETED_BY_FB",
+                 "POLICY_VIOLATION", "COMMERCE_BAN", "CHECKPOINT_REQUIRED",
+                 "SOLD", "RETRY_EXHAUSTED", "UNKNOWN"]},
     {"name": "generation", "label": "Generation", "type": "NUMBER"},
     {"name": "rootListingId", "label": "Root listing ID", "type": "TEXT"},
     {"name": "parentListingId", "label": "Parent listing ID", "type": "TEXT"},
