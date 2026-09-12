@@ -42,6 +42,8 @@ FIELDS: list[dict] = [
     {"name": "lastCheckedAt", "label": "Last checked", "type": "DATE_TIME"},
     {"name": "nextCheckAt", "label": "Next check", "type": "DATE_TIME"},
     {"name": "lastError", "label": "Last error", "type": "TEXT"},
+    {"name": "offerId", "label": "Offer ID", "type": "TEXT"},
+    {"name": "agencyLeadId", "label": "Agency lead ID", "type": "TEXT"},
 ]
 
 CREATE_OBJECT = """mutation CreateOneObjectMetadataItem($input: CreateOneObjectInput!) {
