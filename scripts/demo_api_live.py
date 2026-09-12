@@ -66,14 +66,28 @@ def main() -> int:
             "current_listing_id": "1583545526797714",
             "root_listing_id": "1583545526797714"})["current_listing_id"])
         print("create (dry-run, watch the browser fill the form):")
+        live = os.getenv("API_LIVE_PUBLISH") == "1"
+        listing = {"title": "Rubbish Removal in Galway", "price": "50",
+                   "category": "Household",
+                   "description": "API demo dry-run probe.",
+                   "location": "Galway, Ireland",
+                   "image_paths": [], "dry_run": True}
+        if live:
+            from facebook_camofox_client.domain_marketplace.assets import build_replacement
+
+            rep = build_replacement(
+                "{Rubbish Removal & Clearance|Junk & Waste Collection} in Galway",
+                "{Yard, shed and household rubbish cleared|Fast, reliable clearance} "
+                "across Galway {city and county|}. {Send a photo for a same-day quote|"
+                "Message for a quick quote}.",
+                ["tests/fixtures/rubbish_galway_01.jpg",
+                 "tests/fixtures/rubbish_galway_02.jpg"],
+                "artifacts/relist")
+            listing.update(title=rep["title"], description=rep["description"],
+                           image_paths=[rep["image_path"]], dry_run=False)
+            print(f"LIVE publish with mutated assets (pixels_mutated={rep['pixels_mutated']})")
         out = call("POST", "/api/listings", {
-            "account_id": "demo",
-            "cookies": crm_cookies,
-            "listing": {"title": "Rubbish Removal in Galway", "price": "50",
-                        "category": "Household",
-                        "description": "API demo dry-run probe.",
-                        "location": "Galway, Ireland",
-                        "image_paths": [], "dry_run": True}})
+            "account_id": "demo", "cookies": crm_cookies, "listing": listing})
         print("  published:", out["published"], "| reason:", out.get("reason"),
               "| receipt:", out["receipt_path"])
         print("status:", call(
