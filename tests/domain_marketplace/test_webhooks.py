@@ -7,6 +7,7 @@ from facebook_camofox_client.domain_marketplace.webhooks import (
     created_event,
     dispatch,
     health_checked_event,
+    post_new_event,
     superseded_event,
 )
 
@@ -65,3 +66,12 @@ async def test_dispatch_success(monkeypatch):
 
     monkeypatch.setattr(webhooks.httpx, "AsyncClient", Client)
     assert await dispatch({"event": "x"}, url="http://crm/hook") is True
+
+
+def test_post_new_shape_and_truncation():
+    p = post_new_event(action_id="a", group_id="g", record_id="r", post_id="p",
+                       content="x" * 600, url="u", author="n",
+                       occurred_at="2026-09-12T00:00:00+00:00")
+    assert p["event"] == "posts.new"
+    assert p["data"]["groupId"] == "g" and p["data"]["postId"] == "p"
+    assert len(p["data"]["content"]) == 500

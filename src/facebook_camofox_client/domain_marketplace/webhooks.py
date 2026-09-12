@@ -93,3 +93,18 @@ async def dispatch(payload: dict, url: str | None = None) -> bool | None:
             return 200 <= resp.status_code < 300
     except Exception:
         return False
+
+
+def post_new_event(*, action_id: str, group_id: str, record_id: str,
+                   post_id: str, content: str = "", url: str = "",
+                   author: str = "", occurred_at: str | None = None) -> dict:
+    """Inbound notification: a new group post passed filters + commit."""
+    return {
+        "event": "posts.new",
+        "timestamp": now_iso(),
+        "data": {
+            "actionId": action_id, "groupId": group_id, "recordId": record_id,
+            "postId": post_id, "content": (content or "")[:500],
+            "url": url, "author": author, "occurredAt": occurred_at,
+        },
+    }
