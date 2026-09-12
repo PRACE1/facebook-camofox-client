@@ -81,10 +81,17 @@ def alert_raised_event(*, listing_id: str, root_listing_id: str, offer_id: str,
     }
 
 
-async def dispatch(payload: dict, url: str | None = None) -> bool | None:
+async def dispatch(payload: dict, url: str | None = None,
+                 env_vars: tuple[str, ...] = ("MARKETPLACE_WEBHOOK_URL",)) -> bool | None:
     """POST one webhook. None = no endpoint configured (dev no-op).
-    False = delivery failed (logged, never raised). True = delivered."""
-    url = url or os.getenv("MARKETPLACE_WEBHOOK_URL")
+    False = delivery failed (logged, never raised). True = delivered.
+    env_vars: first set variable wins — inbound posts try POSTS_WEBHOOK_URL
+    before the shared marketplace endpoint so lead ingestion can split off."""
+    if url is None:
+        for var in env_vars:
+            url = os.getenv(var)
+            if url:
+                break
     if not url:
         return None
     try:

@@ -155,8 +155,12 @@ class PostsListenAction:
                 )
                 await self.cursor_repo.save(new_cursor)
 
-            # Emit posts.new after cursor is durable (in-process + HTTP push)
-            for rec in new_records:
+            # Emit posts.new after cursor is durable (in-process + HTTP push).
+            # HTTP pushes go out concurrently: a catch-up poll with many new
+            # posts must not stall the loop on sequential 10s timeouts.
+            import asyncio as _asyncio
+
+            async def _notify(rec) -> None:
                 await self.event_emitter.emit(
                     "posts.new",
                     {"action_id": envelope.action_id, "record_id": rec.record_id, "post_id": rec.external_id},
@@ -171,16 +175,21 @@ class PostsListenAction:
                     author = getattr(rec, "author", "")
                     if isinstance(author, dict):
                         author = author.get("author_name") or author.get("name") or ""
-                    await dispatch(post_new_event(
-                        action_id=envelope.action_id, group_id=group_id,
-                        record_id=rec.record_id, post_id=rec.external_id,
-                        content=getattr(rec, "content", "") or "",
-                        url=getattr(rec, "url", "") or "",
-                        author=author,
-                        occurred_at=occurred.isoformat() if occurred else None,
-                    ))
+                    await dispatch(
+                        post_new_event(
+                            action_id=envelope.action_id, group_id=group_id,
+                            record_id=rec.record_id, post_id=rec.external_id,
+                            content=getattr(rec, "content", "") or "",
+                            url=getattr(rec, "url", "") or "",
+                            author=author,
+                            occurred_at=occurred.isoformat() if occurred else None,
+                        ),
+                        env_vars=("POSTS_WEBHOOK_URL", "MARKETPLACE_WEBHOOK_URL"),
+                    )
                 except Exception:
                     pass
+
+            await _asyncio.gather(*(_notify(rec) for rec in new_records))
 
             is_degraded = scroll_phase_dropped > 0 or degraded_count > 0 or rejected_count > 0
             await self.event_emitter.emit(

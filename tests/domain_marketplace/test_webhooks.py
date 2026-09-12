@@ -62,10 +62,44 @@ async def test_dispatch_success(monkeypatch):
 
         async def __aexit__(self, *a): pass
 
-        async def post(self, url, json=None): return Resp()
+        async def post(self, url, json=None):
+            Client.last_url = url
+            return Resp()
 
+    Client.last_url = ""
     monkeypatch.setattr(webhooks.httpx, "AsyncClient", Client)
     assert await dispatch({"event": "x"}, url="http://crm/hook") is True
+    assert Client.last_url == "http://crm/hook"
+
+
+@pytest.mark.asyncio
+async def test_dispatch_env_fallback_prefers_posts_url(monkeypatch):
+    seen = []
+
+    class Resp:
+        status_code = 200
+
+    class Client:
+        def __init__(self, *a, **k): pass
+
+        async def __aenter__(self): return self
+
+        async def __aexit__(self, *a): pass
+
+        async def post(self, url, json=None):
+            seen.append(url)
+            return Resp()
+
+    monkeypatch.setattr(webhooks.httpx, "AsyncClient", Client)
+    monkeypatch.setenv("POSTS_WEBHOOK_URL", "http://crm/posts")
+    monkeypatch.setenv("MARKETPLACE_WEBHOOK_URL", "http://crm/mkt")
+    assert await dispatch({"event": "posts.new"},
+                          env_vars=("POSTS_WEBHOOK_URL", "MARKETPLACE_WEBHOOK_URL")) is True
+    assert seen == ["http://crm/posts"]
+    monkeypatch.delenv("POSTS_WEBHOOK_URL")
+    assert await dispatch({"event": "posts.new"},
+                          env_vars=("POSTS_WEBHOOK_URL", "MARKETPLACE_WEBHOOK_URL")) is True
+    assert seen[-1] == "http://crm/mkt"
 
 
 def test_post_new_shape_and_truncation():
