@@ -104,8 +104,10 @@ class CamofoxSessionManager:
         takes precedence over files; see cookie_hydration."""
         from camoufox.async_api import AsyncCamoufox
 
+        # NOTE: humanize MUST be a float, never boolean True — boolean hangs
+        # mouse.move on current Camoufox builds ("maxTime is not a double").
         runtime = AsyncCamoufox(
-            humanize=True,
+            humanize=1.5,
             geoip=True,
             proxy=proxy_config,
         )

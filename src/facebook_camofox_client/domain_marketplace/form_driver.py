@@ -16,6 +16,13 @@ PORTAL = 'div[role="listbox"], div[role="dialog"], div[role="menu"], ul[role="li
 
 async def clear_and_type(locator, page, value: str, delay: int = 20) -> None:
     await locator.scroll_into_view_if_needed()
+    try:  # primitives: glide + hover before the act (best-effort by default,
+        # strict under CAMOFOX_ENFORCE_PRIMITIVES=1)
+        from facebook_camofox_client.domain_camofox.interactions import hover_locator
+
+        await hover_locator(page, locator)
+    except Exception:
+        pass
     await locator.click(timeout=8000)
     await page.keyboard.press("ControlOrMeta+A")
     await page.keyboard.press("Backspace")
