@@ -1,2 +1,10 @@
-__pycache__/ 
-*.pyc 
+__pycache__/
+*.pyc
+*.egg-info/
+tests/fixtures/groups_search/
+
+# local run artifacts: screenshots/HTML dumps (often contain live listing data)
+/artifacts/
+/state/
+/*.png
+/*.html

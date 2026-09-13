@@ -1,7 +1,9 @@
-"""Real smoke test — read-only group navigation."""
+"""Real smoke test -- read-only group navigation."""
 import asyncio
 import sys
 import json
+from pathlib import Path
+
 sys.path.insert(0, "src")
 
 from facebook_camofox_client.domain_camofox.session_manager import CamofoxSessionManager
@@ -14,10 +16,10 @@ from facebook_camofox_client.domain_actions.envelope import ActionEnvelope
 COOKIES_FILE = r"C:\Users\R5 5600 GT\fb_cookies.json"
 GROUP_ID = "305056891435827"
 
+
 async def main():
     print("=== Smoke Test: Real Facebook Group ===")
 
-    # Load cookies
     with open(COOKIES_FILE, encoding="utf-8") as f:
         cookies = json.load(f)
     print(f"Cookies loaded: {len(cookies)} entries")
@@ -33,7 +35,7 @@ async def main():
         action_type="groups.search",
         account_id="disposable-test",
         input={"group_ids": [GROUP_ID], "terms": [], "limit": 3},
-        idempotency_key="smoke-k1"
+        idempotency_key="smoke-k1",
     )
 
     try:
@@ -42,9 +44,20 @@ async def main():
         print(f"Events emitted: {[e.event_type for e in emitter.events]}")
         for rec in result.results:
             print(f"  - {rec.get('external_id')} | {rec.get('content', '')[:60]}")
+
+        # Save raw captured records as a real fixture -- this is what
+        # actually happened on a live Facebook session, not a mock.
+        fixture_dir = Path("tests/fixtures/facebook/real_captures")
+        fixture_dir.mkdir(parents=True, exist_ok=True)
+        fixture_path = fixture_dir / f"real_capture_{GROUP_ID}.json"
+        with open(fixture_path, "w", encoding="utf-8") as f:
+            json.dump(result.results, f, indent=2, default=str)
+        print(f"Saved real fixture to: {fixture_path}")
+
     except Exception as e:
         print(f"ERROR: {e}")
-        print(f"Events so far: {[e.event_type for e in emitter.events]}")
+        print(f"Events so far: {[ev.event_type for ev in emitter.events]}")
+
 
 if __name__ == "__main__":
     asyncio.run(main())

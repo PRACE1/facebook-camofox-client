@@ -1,0 +1,15 @@
+# Windows Task Scheduler equivalent (this dev box runs Windows).
+# Run every 4 hours, start in repo root. Paste in elevated PowerShell:
+#
+# $action = New-ScheduledTaskAction -Execute "python.exe" `
+#   -Argument "scripts\relist_watcher.py state\watchlist.json" `
+#   -WorkingDirectory "C:\Users\R5 5600 GT\facebook-camofox-client"
+# $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) `
+#   -RepetitionInterval (New-TimeSpan -Hours 4) -RepetitionDuration ([TimeSpan]::MaxValue)
+# Register-ScheduledTask -TaskName "FBRelistWatcher" -Action $action `
+#   -Trigger $trigger -Description "Marketplace relist watcher (single-flight)"
+#
+# Env the task needs (set as machine/user env or in the task):
+#   CAMOFOX_STORAGE_STATE_LISTEN_GROUP=C:\Users\R5 5600 GT\fb_cookies_playwright.json
+#   RELIST_LIVE=1                      # unset = dry mode (prints, never publishes)
+#   MARKETPLACE_WEBHOOK_URL=https://<twenty>/api/webhooks/marketplace-events

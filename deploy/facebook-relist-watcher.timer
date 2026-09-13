@@ -1,0 +1,10 @@
+[Unit]
+Description=Run relist watcher every 4 hours with jitter
+
+[Timer]
+OnCalendar=*:00/4:00
+RandomizedDelaySec=1800
+Persistent=true
+
+[Install]
+WantedBy=timers.target
