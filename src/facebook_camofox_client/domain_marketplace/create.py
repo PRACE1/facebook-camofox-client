@@ -120,7 +120,19 @@ class MarketplaceCreateAction:
                 except Exception:
                     pass
 
-            filled = await self._save_debug(page, f"form_filled_{envelope.action_id}")
+            filled =             await self._save_debug(page, f"form_filled_{envelope.action_id}")
+            try:
+                state = await page.evaluate(
+                    """() => ({
+                      photos: (document.body.innerText.match(/(\\d+)\\s*\\/\\s*10\\s*photos?/i) || [])[1] || '?',
+                      title: (document.querySelector('input[type=text]:not([role=combobox])')||{}).value || '',
+                      invalid: [...document.querySelectorAll('[aria-invalid="true"]')].length,
+                      body: document.body.innerText.slice(0, 400)
+                    })""")
+                print(f"  [form-state] photos={state.get('photos')} "
+                      f"title_set={bool(state.get('title'))} invalid={state.get('invalid')}")
+            except Exception:
+                pass
             if data.dry_run:
                 await self.event_emitter.emit(
                     "marketplace.create_completed",

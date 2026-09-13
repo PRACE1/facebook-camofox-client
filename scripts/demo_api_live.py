@@ -68,7 +68,7 @@ def main() -> int:
         print("create (dry-run, watch the browser fill the form):")
         live = os.getenv("API_LIVE_PUBLISH") == "1"
         listing = {"title": "Rubbish Removal in Galway", "price": "50",
-                   "category": "Household",
+                   "category": "Household", "condition": "Used \u2013 fair",
                    "description": "API demo dry-run probe.",
                    "location": "Galway, Ireland",
                    "image_paths": [], "dry_run": True}
