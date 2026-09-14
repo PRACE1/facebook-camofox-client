@@ -122,6 +122,24 @@ async def watch_list(_: None = Depends(_api_key)):
     return [m.model_dump() for m in _watchlist.values()]
 
 
+@app.get("/api/messages")
+async def message_list(limit: int = 20, _: None = Depends(_api_key)):
+    from facebook_camofox_client.domain_connectors.messages import MessagesClient
+
+    rows, total = await MessagesClient().list_messages(limit=limit)
+    return {"totalCount": total, "rows": rows}
+
+
+@app.get("/api/messages/{message_id}")
+async def message_get(message_id: str, _: None = Depends(_api_key)):
+    from facebook_camofox_client.domain_connectors.messages import MessagesClient
+
+    row = await MessagesClient().get_message(message_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="unknown message_id")
+    return row
+
+
 @app.get("/healthz")
 async def healthz():
     return {"ok": True, "at": datetime.now(UTC).isoformat()}
